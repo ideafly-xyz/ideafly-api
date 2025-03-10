@@ -48,6 +48,10 @@ public class TokenInterceptor implements HandlerInterceptor {
         // 如果token为空或者无效，返回 401 Unauthorized
         if (token == null || !jwtUtil.isTokenValid(token, jwtUtil.extractPhoneNumber(token))) { //  更严谨的验证方式，同时验证token和phoneNumber
             response.setStatus(HttpStatus.OK.value());
+            // 【修改处】 设置响应字符编码为 UTF-8
+            response.setCharacterEncoding("UTF-8");
+            // 【修改处】 设置 Content-Type 为 application/json;charset=UTF-8，告知客户端返回的是 JSON 格式，并使用 UTF-8 编码
+            response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.NO_AUTH))); // 返回 JSON 错误信息
             return false; // 拦截请求
         }
