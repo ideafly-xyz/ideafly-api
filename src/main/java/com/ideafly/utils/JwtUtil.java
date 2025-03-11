@@ -32,6 +32,8 @@ public class JwtUtil {
     }
 
     public String generateRefreshToken(String phoneNumber) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("type", "refresh"); //  添加 token 类型声明
         return generateRefreshToken(new HashMap<>(), phoneNumber);
     }
 
@@ -60,7 +62,14 @@ public class JwtUtil {
         final String tokenPhoneNumber = extractPhoneNumber(token);
         return (tokenPhoneNumber.equals(phoneNumber)) && !isTokenExpired(token);
     }
-
+    public boolean isRefreshTokenValid(String refreshToken, String phoneNumber) {
+        final String tokenPhoneNumber = extractPhoneNumber(refreshToken);
+        final String tokenType = extractTokenType(refreshToken); //  提取 token 类型
+        return (tokenPhoneNumber.equals(phoneNumber)) && !isTokenExpired(refreshToken) && "refresh".equals(tokenType); //  同时验证 token 类型
+    }
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get("type", String.class)); //  从 claims 中获取 "type" 声明，并指定返回类型为 String
+    }
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }

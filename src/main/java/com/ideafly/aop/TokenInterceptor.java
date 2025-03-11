@@ -60,7 +60,6 @@ public class TokenInterceptor implements HandlerInterceptor {
                 response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.NO_AUTH))); // 返回 JSON 错误信息
                 return false; // 拦截请求
             }
-
             String phoneNumber = jwtUtil.extractPhoneNumber(token);
             UserDto userDTO = new UserDto(); // 创建 UserDTO 对象
             userDTO.setPhoneNumber(phoneNumber); //  设置手机号或其他用户信息

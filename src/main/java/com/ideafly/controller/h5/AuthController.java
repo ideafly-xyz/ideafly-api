@@ -40,7 +40,7 @@ public class AuthController {
         //  1.  验证 refreshToken 是否过期 (JwtUtil.isTokenValid 已经包含了过期验证)
         //  2.  验证 refreshToken 的类型是否为 "refresh" (可以在 payload 中添加 "type": "refresh" 声明)
         //  3.  可以考虑将 refreshToken 存储在数据库或 Redis 中，验证 refreshToken 是否存在于有效列表中，防止 refreshToken 被伪造或泄露后被滥用
-        if (!jwtUtil.isTokenValid(refreshToken, phoneNumber)) { //  验证 refreshToken 是否有效 (包含过期验证)
+        if (!jwtUtil.isRefreshTokenValid(refreshToken, phoneNumber)) { //  验证 refreshToken 是否有效 (包含过期验证)
             return R.error(ErrorCode.TOKEN_EXPIRED);
         }
         //  验证通过，颁发新的 accessToken 和 refreshToken
