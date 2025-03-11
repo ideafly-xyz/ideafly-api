@@ -5,6 +5,8 @@ import cn.hutool.json.JSONUtil;
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.ErrorCode;
 import com.ideafly.common.R;
+import com.ideafly.common.UserContextHolder;
+import com.ideafly.dto.user.UserDto;
 import com.ideafly.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -56,6 +58,16 @@ public class TokenInterceptor implements HandlerInterceptor {
             return false; // 拦截请求
         }
         // Token 验证通过，放行请求
+        // 【新增代码】 Token 验证通过，解析用户信息并放入 ThreadLocal
+        String phoneNumber = jwtUtil.extractPhoneNumber(token);
+        UserDto userDTO = new UserDto(); // 创建 UserDTO 对象
+        userDTO.setPhoneNumber(phoneNumber); //  设置手机号或其他用户信息
+        UserContextHolder.setUser(userDTO); //  将 UserDTO 放入 ThreadLocal
         return true;
+    }
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        // 【新增代码】 请求完成后，清除 ThreadLocal 中的用户信息，防止内存泄漏
+        UserContextHolder.removeUser();
     }
 }

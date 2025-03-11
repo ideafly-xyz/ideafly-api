@@ -5,10 +5,10 @@ CREATE DATABASE ideafly DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 USE ideafly;
 CREATE TABLE users (
                        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID，主键，自增',
-                       username VARCHAR(50) UNIQUE NOT NULL COMMENT '用户名，唯一',
-                       email VARCHAR(100) UNIQUE NOT NULL COMMENT '邮箱，唯一，用于登录和找回密码',
-                       mobile VARCHAR(20) UNIQUE COMMENT '手机号，唯一，用于登录和短信通知',
-                       password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希值，存储加密后的密码',
+                       username VARCHAR(50)  COMMENT '用户名，唯一',
+                       email VARCHAR(100)  COMMENT '邮箱，唯一，用于登录和找回密码',
+                       mobile VARCHAR(20)  COMMENT '手机号，唯一，用于登录和短信通知',
+                       password_hash VARCHAR(255)  COMMENT '密码哈希值，存储加密后的密码',
                        avatar_url VARCHAR(255) COMMENT '头像URL',
                        nickname VARCHAR(50) COMMENT '昵称',
                        real_name VARCHAR(50) COMMENT '真实姓名',

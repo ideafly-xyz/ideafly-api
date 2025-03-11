@@ -1,6 +1,7 @@
 package com.ideafly.controller.h5;
 
 import com.ideafly.common.R;
+import com.ideafly.common.UserContextHolder;
 import com.ideafly.model.Users;
 import com.ideafly.service.UsersService;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,7 +21,7 @@ public class UserH5Controller {
     private UsersService usersService;
 
     @GetMapping("/get")
-    public R<Users> get(@Parameter(description = "用户ID")@RequestParam("id") Integer id){
-        return R.success(usersService.getById(id));
+    public R<Users> get(){
+        return R.success(usersService.getUserByMobile(UserContextHolder.getUser().getPhoneNumber()));
     }
 }

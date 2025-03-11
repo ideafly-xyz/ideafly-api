@@ -12,6 +12,11 @@ spring:
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: localhost
+    port: 6379
+    password: 123456
+    database: 0
 logging:
   level:
     com.infinity.ai: DEBUG
@@ -21,19 +26,9 @@ logging:
     path: ./logs
 knife4j:
   enable: true
-  setting:
-    enable-footer: true
-spring-doc:
-  swagger-ui:
-    path: /swagger-ui.html
-    tags-sorter: alpha
-    operations-sorter: alpha
-  api-docs:
-    path: /v3/api-docs
-  group-configs:
-    - group: '默认分组'
-      paths-to-match: '/**'
-      packages-to-scan: com.ideafly
+  openapi:
+   scan:
+     base-packages: com.ideafly #  替换成您的 Controller 类所在的父包路径
 # application.yml
 
 aliyun:
