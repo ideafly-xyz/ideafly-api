@@ -17,7 +17,7 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-       @Value("${jwt.secret}") // 从配置文件中读取密钥
+    @Value("${jwt.secret}") // 从配置文件中读取密钥
     private String secretKey;
 
     @Value("${jwt.expiration}") // Token 过期时间，单位毫秒
@@ -88,7 +88,9 @@ public class JwtUtil {
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        // 替换 '-' 和 '_' 为 '+' 和 '/'
+        String processedKey = secretKey.replace('-', '+').replace('_', '/');
+        byte[] keyBytes = Decoders.BASE64.decode(processedKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

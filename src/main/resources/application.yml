@@ -5,6 +5,8 @@ spring:
     name: ideafly-api-service
   profiles:
     active: jumper
+  jackson:
+    property-naming-strategy: SNAKE_CASE
   datasource:
     url: jdbc:mysql://localhost:3306/ideafly?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8&useSSL=true&autoReconnect=true&zeroDateTimeBehavior=convertToNull&useOldAliasMetadataBehavior=true
     username: root
@@ -41,6 +43,6 @@ aliyun:
     signName: 你的短信签名  # 替换为你的短信签名
     templateCode: SMS_xxxxxxx  # 替换为你的短信模板 Code
 jwt:
-  secret: your_jwt_secret_key_very_secret  # 替换成你的 JWT 密钥 (务必保密!)
+  secret: VyacG/skIsQm9uJLXc14MlI0fM9dzoMX/133l/6jrS8=  # 替换成你的 JWT 密钥 (务必保密!)
   expiration: 3600000  # Token 过期时间，例如 1小时 (单位毫秒)
   refreshExpiration: 86400000 # Refresh Token 过期时间，例如 1天 (单位毫秒)
