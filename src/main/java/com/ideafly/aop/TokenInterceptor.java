@@ -8,6 +8,7 @@ import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.user.UserDto;
 import com.ideafly.utils.JwtUtil;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -47,23 +48,35 @@ public class TokenInterceptor implements HandlerInterceptor {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             token = authorizationHeader.substring(7); // 去除 "Bearer " 前缀
         }
+
         // 如果token为空或者无效，返回 401 Unauthorized
-        if (token == null || !jwtUtil.isTokenValid(token, jwtUtil.extractPhoneNumber(token))) { //  更严谨的验证方式，同时验证token和phoneNumber
-            response.setStatus(HttpStatus.OK.value());
+        try { // Add try-catch block
+            if (token == null || !jwtUtil.isTokenValid(token, jwtUtil.extractPhoneNumber(token))) { //  更严谨的验证方式，同时验证token和phoneNumber
+                response.setStatus(HttpStatus.OK.value());
+                // 【修改处】 设置响应字符编码为 UTF-8
+                response.setCharacterEncoding("UTF-8");
+                // 【修改处】 设置 Content-Type 为 application/json;charset=UTF-8，告知客户端返回的是 JSON 格式，并使用 UTF-8 编码
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.NO_AUTH))); // 返回 JSON 错误信息
+                return false; // 拦截请求
+            }
+
+            String phoneNumber = jwtUtil.extractPhoneNumber(token);
+            UserDto userDTO = new UserDto(); // 创建 UserDTO 对象
+            userDTO.setPhoneNumber(phoneNumber); //  设置手机号或其他用户信息
+            UserContextHolder.setUser(userDTO); //  将 UserDTO 放入 ThreadLocal
+            // Token 验证通过，放行请求
+            return true;
+
+        } catch (ExpiredJwtException e) { // Catch ExpiredJwtException specifically
+            response.setStatus(HttpStatus.OK.value()); // Still return 200 OK as before, adjust if needed
             // 【修改处】 设置响应字符编码为 UTF-8
             response.setCharacterEncoding("UTF-8");
             // 【修改处】 设置 Content-Type 为 application/json;charset=UTF-8，告知客户端返回的是 JSON 格式，并使用 UTF-8 编码
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.NO_AUTH))); // 返回 JSON 错误信息
+            response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.TOKEN_EXPIRED))); // Return specific TOKEN_EXPIRED error
             return false; // 拦截请求
         }
-        // Token 验证通过，放行请求
-        // 【新增代码】 Token 验证通过，解析用户信息并放入 ThreadLocal
-        String phoneNumber = jwtUtil.extractPhoneNumber(token);
-        UserDto userDTO = new UserDto(); // 创建 UserDTO 对象
-        userDTO.setPhoneNumber(phoneNumber); //  设置手机号或其他用户信息
-        UserContextHolder.setUser(userDTO); //  将 UserDTO 放入 ThreadLocal
-        return true;
     }
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {

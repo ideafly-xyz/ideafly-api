@@ -1,5 +1,7 @@
 package com.ideafly.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,6 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Users {
+    @TableId(value = "id", type = IdType.AUTO)
     private Integer id; // 用户ID，主键，自增
     private String username; // 用户名，唯一
     private String email; // 邮箱，唯一，用于登录和找回密码

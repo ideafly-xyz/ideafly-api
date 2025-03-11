@@ -124,7 +124,6 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.ideafly.IdeaflyApiApplication</mainClass>
-                    <skip>true</skip>
                 </configuration>
                 <executions>
                     <execution>
