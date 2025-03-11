@@ -17,12 +17,14 @@ public class UsersService extends ServiceImpl<UsersMapper, Users> {
     public Users getUserByMobile(String mobile) {
         return this.lambdaQuery().eq(Users::getMobile, mobile).one();
     }
-    public void saveUserByMobile(String mobile) {
-        if (Objects.isNull(this.getUserByMobile(mobile))) {
-            Users users = new Users();
-            users.setMobile(mobile);
-            users.setUsername(mobile);
-            this.save(users);
+    public Users saveUserByMobile(String mobile) {
+        Users user = this.getUserByMobile(mobile);
+        if (Objects.isNull(user)) {
+            user = new Users();
+            user.setMobile(mobile);
+            user.setUsername(mobile);
+            this.save(user);
         }
+        return user;
     }
 }

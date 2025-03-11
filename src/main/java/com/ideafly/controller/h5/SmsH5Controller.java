@@ -1,8 +1,12 @@
 package com.ideafly.controller.h5;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
+import com.ideafly.dto.LoginSuccessOutputDto;
 import com.ideafly.dto.SmsLoginInputDto;
+import com.ideafly.dto.user.UserDto;
+import com.ideafly.model.Users;
 import com.ideafly.service.SmsService;
 import com.ideafly.service.UsersService;
 import com.ideafly.utils.JwtUtil;
@@ -35,14 +39,13 @@ public class SmsH5Controller {
 
     @NoAuth
     @PostMapping("/login")
-    public R<String> login(@RequestBody SmsLoginInputDto dto) {
-        if (smsService.verifyCode(dto.getVerificationCode())) { //  !!!  安全漏洞  !!!  演示目的，存在安全风险
-            //  !!!  这里应该进行真正的登录逻辑，例如：
-            //  -  查询或创建用户
-            //  -  生成 JWT Token 或 Session 等
-            String token = jwtUtil.generateToken(dto.getPhoneNumber());
-            usersService.saveUserByMobile(dto.getPhoneNumber());
-            return R.success(token);
+    public R<LoginSuccessOutputDto> login(@RequestBody SmsLoginInputDto dto) {
+        if (smsService.verifyCode(dto.getVerificationCode())) {
+            LoginSuccessOutputDto outputDto=new LoginSuccessOutputDto();
+            outputDto.setAccessToken(jwtUtil.generateToken(dto.getPhoneNumber()));
+            outputDto.setRefreshToken(jwtUtil.generateRefreshToken(dto.getPhoneNumber()));
+            outputDto.setUserInfo(BeanUtil.copyProperties(usersService.saveUserByMobile(dto.getPhoneNumber()), UserDto.class));
+            return R.success(outputDto);
         }
         return R.error("验证码错误");
     }
