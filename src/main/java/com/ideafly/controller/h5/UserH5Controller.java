@@ -22,6 +22,6 @@ public class UserH5Controller {
 
     @GetMapping("/get")
     public R<Users> get(){
-        return R.success(usersService.getUserByMobile(UserContextHolder.getUser().getPhoneNumber()));
+        return R.success(usersService.getUserByMobile(UserContextHolder.getUser().getMobile()));
     }
 }

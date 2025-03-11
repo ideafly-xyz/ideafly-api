@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class UserDto {
-    private String phoneNumber;
+    private String mobile;
+    private String username;
     private String nickname;
 }

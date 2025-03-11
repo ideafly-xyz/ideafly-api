@@ -62,7 +62,7 @@ public class TokenInterceptor implements HandlerInterceptor {
             }
             String phoneNumber = jwtUtil.extractPhoneNumber(token);
             UserDto userDTO = new UserDto(); // 创建 UserDTO 对象
-            userDTO.setPhoneNumber(phoneNumber); //  设置手机号或其他用户信息
+            userDTO.setMobile(phoneNumber); //  设置手机号或其他用户信息
             UserContextHolder.setUser(userDTO); //  将 UserDTO 放入 ThreadLocal
             // Token 验证通过，放行请求
             return true;

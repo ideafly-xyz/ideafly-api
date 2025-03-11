@@ -34,7 +34,7 @@ public class JwtUtil {
     public String generateRefreshToken(String phoneNumber) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh"); //  添加 token 类型声明
-        return generateRefreshToken(new HashMap<>(), phoneNumber);
+        return generateRefreshToken(claims, phoneNumber);
     }
 
 

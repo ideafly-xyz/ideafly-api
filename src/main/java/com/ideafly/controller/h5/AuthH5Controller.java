@@ -8,8 +8,6 @@ import com.ideafly.dto.LoginSuccessOutputDto;
 import com.ideafly.dto.user.UserDto;
 import com.ideafly.service.UsersService;
 import com.ideafly.utils.JwtUtil;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +17,7 @@ import javax.annotation.Resource;
 
 @RestController
 @RequestMapping("api/auth")
-public class AuthController {
+public class AuthH5Controller {
     @Resource
     private JwtUtil jwtUtil;
     @Resource
