@@ -26,9 +26,19 @@ logging:
     path: ./logs
 knife4j:
   enable: true
-  openapi:
-   scan:
-     base-packages: com.ideafly #  替换成您的 Controller 类所在的父包路径
+  setting:
+    enable-footer: true
+spring-doc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: '默认分组'
+      paths-to-match: '/**'
+      packages-to-scan: com.ideafly
 # application.yml
 
 aliyun:

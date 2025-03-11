@@ -18,7 +18,7 @@ public class Users {
     private String avatarUrl; // 头像URL
     private String nickname; // 昵称
     private String realName; // 真实姓名
-    private String gender; // 性别，枚举类型：male (男), female (女), other (其他)
+    private Integer gender; // 性别，枚举类型：male (男), female (女), other (其他)
     private String location; // 所在地
     private String personalBio; // 个人简介
     private String websiteUrl; // 个人网站URL
@@ -26,7 +26,7 @@ public class Users {
     private String githubId; // GitHub ID，唯一
     private LocalDateTime registrationTime; // 注册时间，默认当前时间戳
     private LocalDateTime lastLoginTime; // 最后登录时间
-    private String accountStatus; // 账号状态，枚举类型：active (激活), inactive (未激活), blocked (封禁), deleted (已删除)，默认 active
+    private Integer accountStatus; // 账号状态，枚举类型：1 (激活), 2 (未激活), 3 (封禁), 0 (已删除)，默认 1
     private LocalDateTime createdAt; // 创建时间，默认当前时间戳
     private LocalDateTime updatedAt; // 更新时间，自动更新为最新时间戳
 }
