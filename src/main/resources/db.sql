@@ -1,3 +1,8 @@
+-- 创建数据库 ideafly
+CREATE DATABASE ideafly DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 使用数据库 ideafly
+USE ideafly;
 CREATE TABLE users (
                        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID，主键，自增',
                        username VARCHAR(50) UNIQUE NOT NULL COMMENT '用户名，唯一',
