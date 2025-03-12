@@ -1,5 +1,6 @@
 package com.ideafly.aop;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.json.JSON;
 import cn.hutool.json.JSONUtil;
 import com.ideafly.aop.anno.NoAuth;
@@ -7,6 +8,7 @@ import com.ideafly.common.ErrorCode;
 import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.user.UserDto;
+import com.ideafly.service.UsersService;
 import com.ideafly.utils.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,8 @@ public class TokenInterceptor implements HandlerInterceptor {
 
     @Resource
     private JwtUtil jwtUtil;
+    @Autowired
+    private UsersService usersService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -53,17 +57,14 @@ public class TokenInterceptor implements HandlerInterceptor {
         try { // Add try-catch block
             if (token == null || !jwtUtil.isTokenValid(token, jwtUtil.extractPhoneNumber(token))) { //  更严谨的验证方式，同时验证token和phoneNumber
                 response.setStatus(HttpStatus.OK.value());
-                // 【修改处】 设置响应字符编码为 UTF-8
                 response.setCharacterEncoding("UTF-8");
-                // 【修改处】 设置 Content-Type 为 application/json;charset=UTF-8，告知客户端返回的是 JSON 格式，并使用 UTF-8 编码
                 response.setContentType("application/json;charset=UTF-8");
                 response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.NO_AUTH))); // 返回 JSON 错误信息
                 return false; // 拦截请求
             }
             String phoneNumber = jwtUtil.extractPhoneNumber(token);
-            UserDto userDTO = new UserDto(); // 创建 UserDTO 对象
-            userDTO.setMobile(phoneNumber); //  设置手机号或其他用户信息
-            UserContextHolder.setUser(userDTO); //  将 UserDTO 放入 ThreadLocal
+            UserDto userDto= BeanUtil.copyProperties(usersService.getUserByMobile(phoneNumber),UserDto.class);
+            UserContextHolder.setUser(userDto); //  将 UserDTO 放入 ThreadLocal
             // Token 验证通过，放行请求
             return true;
 

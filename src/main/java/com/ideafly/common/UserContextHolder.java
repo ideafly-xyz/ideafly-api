@@ -14,7 +14,9 @@ public class UserContextHolder {
     public static UserDto getUser() {
         return currentUser.get();
     }
-
+    public static Integer getUid() {
+        return currentUser.get().getId();
+    }
     public static void removeUser() {
         currentUser.remove();
     }
