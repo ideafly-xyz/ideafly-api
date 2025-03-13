@@ -6,6 +6,7 @@ import com.ideafly.dto.job.CreateJobInputDto;
 import com.ideafly.dto.job.JobListInputDto;
 import com.ideafly.model.Jobs;
 import com.ideafly.service.JobsService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +14,7 @@ import javax.annotation.Resource;
 import javax.validation.Valid;
 import java.util.Map;
 
+@Tag(name = "职位相关接口")
 @RestController
 @RequestMapping("/api/jobs")
 public class JobH5Controller {
