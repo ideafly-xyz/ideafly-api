@@ -9,5 +9,4 @@ public class JobListInputDto {
     private String city;
     private String profession;
     private String recruitmentType;
-    //  ...  可以根据需要添加更多查询参数 ...
 }
