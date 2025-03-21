@@ -29,10 +29,6 @@ public class Jobs {
 
     private Integer industryDomain;
 
-    private Integer cityString;
-
-    private Integer industryDomainString;
-
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
