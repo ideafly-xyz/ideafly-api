@@ -29,12 +29,11 @@ public class SmsH5Controller {
     @NoAuth
     @PostMapping("/sendSms")
     public R<String> sendSms(@RequestParam("phone_number") String phoneNumber) {
-        return R.success("验证码发送成功");
-       /* boolean isSent = smsService.sendSmsVerificationCode(phoneNumber);
+        boolean isSent = smsService.sendSmsVerificationCode(phoneNumber);
         if (isSent) {
             return R.success("验证码发送成功");
         }
-        return R.error("验证码发送失败");*/
+        return R.error("验证码发送失败");
     }
 
     @NoAuth

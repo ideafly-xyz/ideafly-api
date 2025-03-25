@@ -45,8 +45,8 @@ aliyun:
   sms:
     accessKeyId: LTAI5tPrMEnscMzcURdjnT3b  # 替换为你的 AccessKeyId
     accessKeySecret: MkJpV4enT9YMM7IWNB24MoCfaUxiWX # 替换为你的 AccessKeySecret
-    signName: 你的短信签名  # 替换为你的短信签名
-    templateCode: SMS_xxxxxxx  # 替换为你的短信模板 Code
+    signName: 智飞  # 替换为你的短信签名
+    templateCode: SMS_478500181  # 替换为你的短信模板 Code
 jwt:
   secret: VyacG/skIsQm9uJLXc14MlI0fM9dzoMX/133l/6jrS8=  # 替换成你的 JWT 密钥 (务必保密!)
   expiration: 3600000  # Token 过期时间，例如 1小时 (单位毫秒)
