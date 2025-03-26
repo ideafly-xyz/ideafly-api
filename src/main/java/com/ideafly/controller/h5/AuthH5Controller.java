@@ -45,7 +45,7 @@ public class AuthH5Controller {
         LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
         outputDto.setAccessToken(jwtUtil.generateToken(phoneNumber));
         outputDto.setRefreshToken(jwtUtil.generateRefreshToken(phoneNumber));
-        outputDto.setUserInfo(BeanUtil.copyProperties(usersService.saveUserByMobile(phoneNumber), UserDto.class));
+        outputDto.setUserInfo(BeanUtil.copyProperties(usersService.getOrAddByMobile(phoneNumber), UserDto.class));
         return R.success(outputDto);
     }
 

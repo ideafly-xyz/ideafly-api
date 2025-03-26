@@ -6,7 +6,6 @@ import com.ideafly.common.R;
 import com.ideafly.dto.LoginSuccessOutputDto;
 import com.ideafly.dto.SmsLoginInputDto;
 import com.ideafly.dto.user.UserDto;
-import com.ideafly.model.Users;
 import com.ideafly.service.SmsService;
 import com.ideafly.service.UsersService;
 import com.ideafly.utils.JwtUtil;
@@ -29,11 +28,12 @@ public class SmsH5Controller {
     @NoAuth
     @PostMapping("/sendSms")
     public R<String> sendSms(@RequestParam("phone_number") String phoneNumber) {
-        boolean isSent = smsService.sendSmsVerificationCode(phoneNumber);
+        return R.success("ok");
+   /*     boolean isSent = smsService.sendSmsVerificationCode(phoneNumber);
         if (isSent) {
             return R.success("验证码发送成功");
         }
-        return R.error("验证码发送失败");
+        return R.error("验证码发送失败");*/
     }
 
     @NoAuth
@@ -43,7 +43,7 @@ public class SmsH5Controller {
             LoginSuccessOutputDto outputDto=new LoginSuccessOutputDto();
             outputDto.setAccessToken(jwtUtil.generateToken(dto.getPhoneNumber()));
             outputDto.setRefreshToken(jwtUtil.generateRefreshToken(dto.getPhoneNumber()));
-            outputDto.setUserInfo(BeanUtil.copyProperties(usersService.saveUserByMobile(dto.getPhoneNumber()), UserDto.class));
+            outputDto.setUserInfo(BeanUtil.copyProperties(usersService.getOrAddByMobile(dto.getPhoneNumber()), UserDto.class));
             return R.success(outputDto);
         }
         return R.error("验证码错误");

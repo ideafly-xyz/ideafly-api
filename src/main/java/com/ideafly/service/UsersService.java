@@ -27,7 +27,7 @@ public class UsersService extends ServiceImpl<UsersMapper, Users> {
         this.updateById(users);
     }
 
-    public Users saveUserByMobile(String mobile) {
+    public Users getOrAddByMobile(String mobile) {
         Users user = this.getUserByMobile(mobile);
         if (Objects.isNull(user)) {
             user = new Users();
