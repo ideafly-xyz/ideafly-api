@@ -1,6 +1,7 @@
 package com.ideafly.controller.h5;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
 import com.ideafly.dto.job.CreateJobInputDto;
 import com.ideafly.dto.job.JobDetailOutputDto;
@@ -24,12 +25,13 @@ public class JobH5Controller {
     @Resource
     private JobsService jobService;
 
-
+    @NoAuth
     @PostMapping("list")
     public R<IPage<Jobs>> getJobList(@RequestBody JobListInputDto request) {
         IPage<Jobs> page = jobService.getJobList(request);
         return R.success(page);
     }
+    @NoAuth
     @PostMapping("getNextOneJob")
     public R<JobDetailOutputDto> getNextOneJob(@RequestBody NextJobInputDto request) {
         return R.success(jobService.getNextOneJob(request));

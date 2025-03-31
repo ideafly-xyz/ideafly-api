@@ -1,6 +1,8 @@
 package com.ideafly.service;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.collection.ListUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -13,12 +15,19 @@ import com.ideafly.dto.job.JobListInputDto;
 import com.ideafly.dto.job.NextJobInputDto;
 import com.ideafly.mapper.JobsMapper;
 import com.ideafly.model.Jobs;
+import com.ideafly.model.Users;
+import com.ideafly.utils.TimeUtils;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
+import java.util.List;
 import java.util.Objects;
 
 @Service
 public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
+    @Resource
+    private UsersService usersService;
+
     public IPage<Jobs> getJobList(JobListInputDto request) {
         Page<Jobs> page = new Page<>(request.getPageNum(), request.getPageSize());
         return this.lambdaQuery()
@@ -30,7 +39,8 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
 
     public JobDetailOutputDto getNextOneJob(NextJobInputDto request) {
         Jobs job = this.lambdaQuery()
-                .gt(Jobs::getId, request.getNextJobId())
+                .gt(request.getDirection() > 0, Jobs::getId, request.getCurrentJobId())
+                .lt(request.getDirection() < 0, Jobs::getId, request.getCurrentJobId())
                 .last(IdeaFlyConstant.LIMIT_1)
                 .orderByAsc(Jobs::getId)
                 .one();
@@ -38,11 +48,26 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             return null;
         }
         JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
-        dto.setCityName(City.fromCode(job.getCity()).getDescription());
-        dto.setIndustryDomainName(IndustryDomain.fromCode(job.getIndustryDomain()).getDescription());
-        dto.setWorkTypeName(WorkType.fromCode(job.getWorkType()).getDescription());
-        dto.setProfessionName(Profession.fromCode(job.getProfession()).getDescription());
-        dto.setProfessionName(Profession.fromCode(job.getProfession()).getDescription());
+        Users user = usersService.getById(job.getUserId());
+        if (Objects.nonNull(user)) {
+            dto.setPublisherName(user.getNickname());
+            dto.setPublisherAvatar(user.getAvatarUrl());
+        }
+        dto.setTags(CollUtil.newArrayList(City.fromCode(job.getCity()).getDescription(),
+                IndustryDomain.fromCode(job.getIndustryDomain()).getDescription(),
+                WorkType.fromCode(job.getWorkType()).getDescription(),
+                Profession.fromCode(job.getProfession()).getDescription(),
+                RecruitmentType.fromCode(job.getRecruitmentType()).getDescription()
+        ));
+        dto.setSkills(CollUtil.newArrayList("Java", "Spring", "MySQL"));
+        dto.setSalary("10k-20k");
+        dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
+        dto.setComments(2);
+        dto.setLikes(3);
+        dto.setDislikes(4);
+        dto.setIsFavorite(true);
+        dto.setIsLike(true);
+        dto.setIsDislike(false);
         return dto;
 
     }

@@ -13,8 +13,9 @@ public class Jobs {
 
     private Integer userId;
 
-    private String postTitle;
-    private String postContent;
+    private String title;
+    private String content;
+    private String salary;
     private String contactInfo;
 
     private Integer recruitmentType;

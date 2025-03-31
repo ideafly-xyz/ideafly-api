@@ -25,7 +25,7 @@ public enum RecruitmentType {
     }
 
     //  保留 fromCode 和 fromDescription 方法，虽然当前场景可能不直接使用，但作为通用方法，可以保留
-    public static RecruitmentType fromCode(short code) {
+    public static RecruitmentType fromCode(int code) {
         for (RecruitmentType type : RecruitmentType.values()) {
             if (type.getCode() == code) {
                 return type;

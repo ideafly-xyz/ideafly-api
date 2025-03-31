@@ -1,22 +1,33 @@
 package com.ideafly.dto.job;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class JobDetailOutputDto {
     private Integer id;
     private Integer userId;
-    private String postTitle;
-    private String postContent;
+    private String publisherName;
+    private String publisherAvatar;
+    private String title;
+    private String content;
     private String contactInfo;
-
-    private String recruitmentTypeName;
-    private String professionName;
-    private String workTypeName;
-    private String cityName;
-    private String industryDomainName;
-    private LocalDateTime createdAt;
+    private String company; // 公司
+    private String salary; // 薪资
+    private List<String> tags; // 标签
+    private List<String> skills; // 技能
+    @Schema(description = "发布时间", name = "publish_time")
+    private String publishTime;
     private LocalDateTime updatedAt;
+    private Integer likes;
+    private Integer dislikes;
+    private Integer comments;
+    private Boolean isFavorite; // 是否收藏
+    private Boolean isLike;
+    private Boolean isDislike;
+
+
 }
