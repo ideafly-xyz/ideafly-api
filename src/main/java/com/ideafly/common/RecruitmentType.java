@@ -2,6 +2,11 @@ package com.ideafly.common;
 
 import lombok.Getter;
 
+/**
+ * @author rfs
+ * @date 2025/03/26
+ * 招聘类型
+ */
 @Getter
 public enum RecruitmentType {
     OUTSOURCING_FREELANCE(1, "外包零活"),

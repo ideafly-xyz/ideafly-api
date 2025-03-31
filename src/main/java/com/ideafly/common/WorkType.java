@@ -2,6 +2,11 @@ package com.ideafly.common;
 
 import lombok.Getter;
 
+/**
+ * @author rfs
+ * @date 2025/03/26
+ * 职业
+ */
 @Getter
 public enum WorkType {
     FULL_TIME_OFFICE(1, "全职坐班"),
