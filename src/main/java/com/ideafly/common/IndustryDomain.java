@@ -13,23 +13,23 @@ public enum IndustryDomain {
     GAME(7, "游戏"),
     CULTURE_MEDIA(8, "文化传媒"),
     MEDICAL_HEALTH(9, "医疗健康"),
-    OTHER_DOMAIN(10, "其他");
+    OTHER_DOMAIN(9999, "其他领域");
 
-    private final short code;
+    private final int code;
     private final String description;
 
     IndustryDomain(int code, String description) {
-        this.code = (short) code;
+        this.code = code;
         this.description = description;
     }
 
-    public static IndustryDomain fromCode(short code) {
+    public static IndustryDomain fromCode(int code) {
         for (IndustryDomain domain : IndustryDomain.values()) {
             if (domain.getCode() == code) {
                 return domain;
             }
         }
-        return null;
+        return OTHER_DOMAIN;
     }
 
     public static IndustryDomain fromDescription(String description) {

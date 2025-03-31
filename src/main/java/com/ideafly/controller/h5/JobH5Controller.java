@@ -3,7 +3,9 @@ package com.ideafly.controller.h5;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ideafly.common.R;
 import com.ideafly.dto.job.CreateJobInputDto;
+import com.ideafly.dto.job.JobDetailOutputDto;
 import com.ideafly.dto.job.JobListInputDto;
+import com.ideafly.dto.job.NextJobInputDto;
 import com.ideafly.model.Jobs;
 import com.ideafly.service.JobsService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +30,10 @@ public class JobH5Controller {
         IPage<Jobs> page = jobService.getJobList(request);
         return R.success(page);
     }
-
+    @PostMapping("getNextOneJob")
+    public R<JobDetailOutputDto> getNextOneJob(@RequestBody NextJobInputDto request) {
+        return R.success(jobService.getNextOneJob(request));
+    }
     /**
      * 发布职位接口
      */

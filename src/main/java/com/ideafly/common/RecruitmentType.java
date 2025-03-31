@@ -13,9 +13,10 @@ public enum RecruitmentType {
     COMPANY_DIRECT_RECRUITMENT(2, "企业直招"),
     HEADHUNTER_INTERMEDIARY(3, "猎头中介"),
     EMPLOYEE_REFERRAL(4, "员工内推"),
-    TEAM_PARTNERSHIP(5, "组队合伙");
+    TEAM_PARTNERSHIP(5, "组队合伙"),
+    OTHER(9999,"其他招聘类型");
 
-    private final short code;
+    private final int code;
     private final String description;
 
     RecruitmentType(int code, String description) {
@@ -30,7 +31,7 @@ public enum RecruitmentType {
                 return type;
             }
         }
-        return null;
+        return OTHER;
     }
 
     public static RecruitmentType fromDescription(String description) {

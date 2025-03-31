@@ -21,9 +21,9 @@ public enum City {
     YUNNAN(15, "云南"),
     HAINAN(16, "海南"),
     DALI(17, "大理"),
-    OTHER_CITY(18, "其他");
+    OTHER_CITY(9999, "其他");
 
-    private final short code;
+    private final int code;
     private final String description;
 
     City(int code, String description) {
@@ -31,13 +31,13 @@ public enum City {
         this.description = description;
     }
 
-    public static City fromCode(short code) {
+    public static City fromCode(int code) {
         for (City city : City.values()) {
             if (city.getCode() == code) {
                 return city;
             }
         }
-        return null;
+        return OTHER_CITY;
     }
 
     public static City fromDescription(String description) {
