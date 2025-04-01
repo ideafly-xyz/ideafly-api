@@ -1,6 +1,7 @@
 package com.ideafly.service;
 
 import com.ideafly.common.*;
+import com.ideafly.common.job.*;
 import com.ideafly.dto.job.PublishJobInputDto;
 import org.springframework.stereotype.Service;
 

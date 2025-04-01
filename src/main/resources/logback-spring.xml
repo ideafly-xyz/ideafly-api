@@ -36,5 +36,5 @@
     </root>
 
     <!-- 指定包的日志级别 -->
-    <logger name="com.infinity.ai" level="debug"/>
+    <logger name="com.baomidou" level="debug"/>
 </configuration>

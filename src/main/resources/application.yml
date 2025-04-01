@@ -1,6 +1,8 @@
 server:
   port: 9999
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: ideafly-api-service
   profiles:
@@ -19,7 +21,7 @@ spring:
     database: 0
 logging:
   level:
-    com.infinity.ai: DEBUG
+    com.ideafly.mapper: debug
     com.baomidou: debug
     org.springframework: INFO
   file:

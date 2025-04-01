@@ -1,4 +1,4 @@
-package com.ideafly.common;
+package com.ideafly.common.job;
 
 import lombok.Getter;
 
