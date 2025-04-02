@@ -1,11 +1,17 @@
 package com.ideafly.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 public class JobComments {
+    @TableId(value = "id", type = IdType.AUTO)
     private Integer id; // 评论ID
     private Integer jobId; // 职位ID (关联 jobs 表)
     private Integer userId; // 评论用户ID (关联用户表)
@@ -13,4 +19,6 @@ public class JobComments {
     private String content; // 评论内容
     private LocalDateTime createdAt; // 创建时间
     private LocalDateTime updatedAt; // 更新时间
+    @TableField(exist = false)
+    private List<JobComments> children = new ArrayList<>();
 }
