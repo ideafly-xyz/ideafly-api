@@ -9,34 +9,38 @@ import com.ideafly.model.JobComments;
 import com.ideafly.model.Users;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import javax.annotation.Resource;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobComments> {
+    @Resource
+    private UsersService usersService;
+    @Resource
+    private JobsService jobsService;
 
-    private final UsersService usersService;
-
-    public JobCommentsService(UsersService usersService) {
-        this.usersService = usersService;
-    }
-
-    public void addComment(JobCommentInputDto dto){
+    public void addComment(JobCommentInputDto dto) {
         JobComments jobComments = BeanUtil.copyProperties(dto, JobComments.class);
         jobComments.setUserId(UserContextHolder.getUid());
         this.save(jobComments);
+        jobsService.comments(jobComments.getJobId(), true);
     }
-    public void deleteComment(Long id){
-        this.removeById(id);
+
+    public void deleteComment(Long id) {
+        JobComments jobComment = getById(id);
+        if (Objects.nonNull(jobComment)) {
+            this.removeById(id);
+            jobsService.comments(jobComment.getJobId(), false);
+        }
     }
-    public int getJobCommentCount(Integer jobId){
-        return this.lambdaQuery().eq(JobComments::getJobId,jobId).count().intValue();
+
+    public int getJobCommentCount(Integer jobId) {
+        return this.lambdaQuery().eq(JobComments::getJobId, jobId).count().intValue();
     }
+
     public List<JobComments> getCommentTreeByJobId(Integer jobId) {
-        List<JobComments> allComments =this.lambdaQuery().eq(JobComments::getJobId,jobId).list();
+        List<JobComments> allComments = this.lambdaQuery().eq(JobComments::getJobId, jobId).list();
         if (allComments.isEmpty()) {
             return new ArrayList<>();
         }

@@ -28,12 +28,6 @@ import java.util.stream.Collectors;
 public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     @Resource
     private UsersService usersService;
-    @Resource
-    private JobCommentsService jobCommentsService;
-    @Resource
-    private JobLikesService jobLikesService;
-    @Resource
-    private JobFavoriteService jobFavoriteService;
 
     public Page<JobDetailOutputDto> getJobList(JobListInputDto request) {
         Page<Jobs> page = PageUtil.build(request);
@@ -44,7 +38,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 .orderByDesc(Jobs::getId)
                 .page(page);
         List<JobDetailOutputDto> list = pageResult.getRecords().stream().map(this::convertDto).collect(Collectors.toList());
-       return PageUtil.build(page,list);
+        return PageUtil.build(page, list);
     }
 
     public JobDetailOutputDto convertDto(Jobs job) {
@@ -63,12 +57,6 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         dto.setSkills(CollUtil.newArrayList("Java", "Spring", "MySQL"));
         dto.setSalary("10k-20k");
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
-        dto.setComments(jobCommentsService.getJobCommentCount(job.getId()));
-        dto.setLikes(jobLikesService.getJobLikesCount(job.getId()));
-        dto.setDislikes(4);
-        dto.setIsFavorite(jobFavoriteService.isJobFavorite(job.getId()));
-        dto.setIsLike(jobLikesService.isJobLike(job.getId()));
-        dto.setIsDislike(false);
         return dto;
 
     }
@@ -78,5 +66,15 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         job.setUserId(UserContextHolder.getUid());
         this.save(job);
         return job;
+    }
+
+    public void likes(Integer id, boolean isLike) {
+        this.lambdaUpdate().setSql("likes = likes + " + (isLike ? 1 : -1)).eq(Jobs::getId, id).update();
+    }
+    public void comments(Integer id, boolean isComment) {
+        this.lambdaUpdate().setSql("comments = comments + " + (isComment ? 1 : -1)).eq(Jobs::getId, id).update();
+    }
+    public void favorites(Integer id, boolean isFavorite) {
+        this.lambdaUpdate().setSql("favorites = favorites + " + (isFavorite ? 1 : -1)).eq(Jobs::getId, id).update();
     }
 }

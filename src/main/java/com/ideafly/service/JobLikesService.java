@@ -10,10 +10,13 @@ import com.ideafly.model.JobFavorite;
 import com.ideafly.model.JobLikes;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
 import java.util.Objects;
 
 @Service
 public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
+    @Resource
+    private JobsService jobsService;
     /**
      * 收藏或者取消收藏
      */
@@ -23,6 +26,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         // 取消点赞
         if (Objects.nonNull(like) && Objects.equals(dto.getIsLike(),0) ) {
             this.removeById(like);
+            jobsService.likes(dto.getJobId(), false);
             return;
         }
         // 点赞
@@ -31,6 +35,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             jobLikes.setUserId(uid);
             jobLikes.setJobId(dto.getJobId());
             this.save(jobLikes);
+            jobsService.likes(dto.getJobId(), true);
         }
     }
     public int getJobLikesCount(Integer jobId){

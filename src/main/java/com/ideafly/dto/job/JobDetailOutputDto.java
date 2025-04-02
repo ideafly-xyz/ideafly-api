@@ -24,10 +24,11 @@ public class JobDetailOutputDto {
     private LocalDateTime updatedAt;
     private Integer likes;
     private Integer dislikes;
+    private Integer favorites;
     private Integer comments;
-    private Boolean isFavorite; // 是否收藏
-    private Boolean isLike;
-    private Boolean isDislike;
+    private Boolean isFavorite=false; // 是否收藏
+    private Boolean isLike=false;
+    private Boolean isDislike=false;
 
 
 }

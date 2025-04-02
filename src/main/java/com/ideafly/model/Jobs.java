@@ -29,7 +29,10 @@ public class Jobs {
     private Integer city;
 
     private Integer industryDomain;
-
+    private Integer likes;
+    private Integer dislikes;
+    private Integer comments;
+    private Integer favorites;
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

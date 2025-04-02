@@ -7,11 +7,14 @@ import com.ideafly.mapper.JobFavoriteMapper;
 import com.ideafly.model.JobFavorite;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
 import java.util.Objects;
 
 @Service
 public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavorite> {
 
+    @Resource
+    private JobsService jobsService;
     /**
      * 收藏或者取消收藏
      */
@@ -21,6 +24,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         // 取消收藏
         if (Objects.nonNull(favorite) && Objects.equals(dto.getIsFavorite(),0) ) {
             this.removeById(favorite);
+            jobsService.favorites(dto.getJobId(), false);
             return;
         }
         // 收藏
@@ -29,6 +33,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
             jobFavorite.setUserId(uid);
             jobFavorite.setJobId(dto.getJobId());
             this.save(jobFavorite);
+            jobsService.favorites(dto.getJobId(), true);
         }
     }
     public boolean isJobFavorite(Integer jobId) {
