@@ -31,4 +31,11 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
             this.save(jobFavorite);
         }
     }
+    public boolean isJobFavorite(Integer jobId) {
+        Integer uid = UserContextHolder.getUid();
+        if (Objects.isNull(uid)) {
+            return false;
+        }
+        return this.lambdaQuery().eq(JobFavorite::getJobId, jobId).eq(JobFavorite::getUserId, uid).exists();
+    }
 }

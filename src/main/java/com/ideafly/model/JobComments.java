@@ -21,4 +21,8 @@ public class JobComments {
     private LocalDateTime updatedAt; // 更新时间
     @TableField(exist = false)
     private List<JobComments> children = new ArrayList<>();
+    @TableField(exist = false)
+    private String userName;
+    @TableField(exist = false)
+    private String userAvatar;
 }

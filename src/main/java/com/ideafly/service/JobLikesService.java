@@ -33,4 +33,14 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             this.save(jobLikes);
         }
     }
+    public int getJobLikesCount(Integer jobId){
+        return this.lambdaQuery().eq(JobLikes::getJobId, jobId).count().intValue();
+    }
+    public boolean isJobLike(Integer jobId){
+        Integer uid = UserContextHolder.getUid();
+        if (Objects.isNull(uid)) {
+            return false;
+        }
+        return this.lambdaQuery().eq(JobLikes::getJobId, jobId).eq(JobLikes::getUserId, uid).exists();
+    }
 }

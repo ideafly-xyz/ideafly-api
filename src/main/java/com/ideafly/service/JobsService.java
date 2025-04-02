@@ -28,6 +28,12 @@ import java.util.stream.Collectors;
 public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     @Resource
     private UsersService usersService;
+    @Resource
+    private JobCommentsService jobCommentsService;
+    @Resource
+    private JobLikesService jobLikesService;
+    @Resource
+    private JobFavoriteService jobFavoriteService;
 
     public Page<JobDetailOutputDto> getJobList(JobListInputDto request) {
         Page<Jobs> page = PageUtil.build(request);
@@ -57,11 +63,11 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         dto.setSkills(CollUtil.newArrayList("Java", "Spring", "MySQL"));
         dto.setSalary("10k-20k");
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
-        dto.setComments(2);
-        dto.setLikes(3);
+        dto.setComments(jobCommentsService.getJobCommentCount(job.getId()));
+        dto.setLikes(jobLikesService.getJobLikesCount(job.getId()));
         dto.setDislikes(4);
-        dto.setIsFavorite(true);
-        dto.setIsLike(true);
+        dto.setIsFavorite(jobFavoriteService.isJobFavorite(job.getId()));
+        dto.setIsLike(jobLikesService.isJobLike(job.getId()));
         dto.setIsDislike(false);
         return dto;
 
