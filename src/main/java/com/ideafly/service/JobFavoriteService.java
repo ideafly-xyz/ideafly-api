@@ -28,7 +28,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
             return;
         }
         // 收藏
-        if(Objects.isNull(favorite) && Objects.equals(dto.getIsFavorite(),0)){
+        if(Objects.isNull(favorite) && Objects.equals(dto.getIsFavorite(),1)){
             JobFavorite jobFavorite = new JobFavorite();
             jobFavorite.setUserId(uid);
             jobFavorite.setJobId(dto.getJobId());

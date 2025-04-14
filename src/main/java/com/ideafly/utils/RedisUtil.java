@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 @Component
 @Slf4j
+@SuppressWarnings("unchecked")
 public class RedisUtil {
 
     @Qualifier("ideaFlyRedisTemplate")
@@ -67,7 +68,8 @@ public class RedisUtil {
     }
 
     public <T> boolean sIsMember(String key, T value) {
-        return redisTemplate.opsForSet().isMember(key, value);
+        Boolean result = redisTemplate.opsForSet().isMember(key, value);
+        return result != null && result;
     }
 
     public <T> void sAdd(String key, Collection<T> values, long expireTime) {
@@ -92,7 +94,11 @@ public class RedisUtil {
     }
 
     public <T> Set<T> sMembers(String key) {
-        return (Set<T>) redisTemplate.opsForSet().members(key);
+        Set<Object> members = redisTemplate.opsForSet().members(key);
+        if (members == null) {
+            return Collections.emptySet();
+        }
+        return (Set<T>) members;
     }
 
     public <T> void srm(String key, T... values) {
@@ -112,7 +118,6 @@ public class RedisUtil {
      * @param key
      * @return Object
      */
-    @SuppressWarnings("unchecked")
     public <T> T get(String key) {
         return key == null ? null : (T) redisTemplate.opsForValue().get(key);
     }
@@ -121,7 +126,8 @@ public class RedisUtil {
         if (keys == null || keys.isEmpty()) {
             return Collections.emptyList();
         }
-        return (List<T>) redisTemplate.opsForValue().multiGet(keys);
+        List<Object> results = redisTemplate.opsForValue().multiGet(keys);
+        return results == null ? Collections.emptyList() : (List<T>) results;
     }
 
     /**
@@ -131,7 +137,6 @@ public class RedisUtil {
      * @param hashKey 项 不能为null
      * @return T
      */
-    @SuppressWarnings("unchecked")
     public <T, HK> T hGet(String key, HK hashKey) {
         return (T) redisTemplate.opsForHash().get(key, hashKey);
     }
@@ -143,11 +148,17 @@ public class RedisUtil {
      * @return 对应的多个键值
      */
     public <HK, HV> Map<HK, HV> hGetAll(String key) {
-        return (Map<HK, HV>) redisTemplate.opsForHash().entries(key);
+        Map<Object, Object> entries = redisTemplate.opsForHash().entries(key);
+        return (Map<HK, HV>) entries;
     }
 
     public <HK, HV> List<HV> hMGet(String key, Collection<HK> hashKeys) {
-        return (List<HV>) redisTemplate.opsForHash().multiGet(key, (Collection<Object>) hashKeys);
+        if (hashKeys == null || hashKeys.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Collection<Object> keys = (Collection<Object>)(Collection<?>) hashKeys;
+        List<Object> results = redisTemplate.opsForHash().multiGet(key, keys);
+        return results == null ? Collections.emptyList() : (List<HV>) results;
     }
 
     /**
@@ -157,11 +168,13 @@ public class RedisUtil {
      * @return 对应的多个键值
      */
     public <HV> List<HV> hGetAllValues(String key) {
-        return (List<HV>) redisTemplate.opsForHash().values(key);
+        List<Object> values = redisTemplate.opsForHash().values(key);
+        return values == null ? Collections.emptyList() : (List<HV>) values;
     }
 
     public <HK> Set<HK> hGetAllKeys(String key) {
-        return (Set<HK>) redisTemplate.opsForHash().keys(key);
+        Set<Object> keys = redisTemplate.opsForHash().keys(key);
+        return keys == null ? Collections.emptySet() : (Set<HK>) keys;
     }
 
     /**
@@ -184,7 +197,8 @@ public class RedisUtil {
      * @return true成功 false失败
      */
     public <HK, HV> boolean hMSet(String key, Map<HK, HV> value, long time) {
-        redisTemplate.opsForHash().putAll(key, value);
+        Map<Object, Object> map = (Map<Object, Object>)(Map<?, ?>) value;
+        redisTemplate.opsForHash().putAll(key, map);
         if (time > 0) {
             expire(key, time);
         }
@@ -226,36 +240,48 @@ public class RedisUtil {
         //删除已经存在的
         redisTemplate.opsForList().remove(key, 0, value);
         Long count = redisTemplate.opsForList().leftPush(key, value);
-        if (max != null && count > max) {
+        if (max != null && count != null && count > max) {
             redisTemplate.opsForList().rightPop(key);
         }
     }
 
-    public <T> T lGet(String key, long max) {
+    public <T> List<T> lGet(String key, long max) {
         List<Object> list = redisTemplate.opsForList().range(key, 0, max);
-        return (T) list;
+        return list == null ? Collections.emptyList() : (List<T>) list;
     }
-    public Long lRemove(String key,long max, Object value) {
+    
+    public Long lRemove(String key, long max, Object value) {
         return redisTemplate.opsForList().remove(key, max, value);
     }
+    
     public <T> void lLeftPush(String key, T t) {
         redisTemplate.opsForList().leftPush(key, t);
     }
+    
     public <T> void lLeftPushAll(String key, T... values) {
         redisTemplate.opsForList().leftPushAll(key, values);
     }
+    
     public <T> void lRightPush(String key, T t) {
         redisTemplate.opsForList().rightPush(key, t);
     }
+    
     public <T> void lRightPushAll(String key, List<T> values) {
-        redisTemplate.opsForList().rightPushAll(key, values);
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+        List<Object> objects = (List<Object>)(List<?>) values;
+        redisTemplate.opsForList().rightPushAll(key, objects);
     }
+    
     public <T> T lRightPop(String key) {
         return (T) redisTemplate.opsForList().rightPop(key);
     }
+    
     public <T> T lLeftPop(String key) {
         return (T) redisTemplate.opsForList().leftPop(key);
     }
+    
     /**
      * 批量添加数据
      *
@@ -363,7 +389,7 @@ public class RedisUtil {
         // lua脚本：比较加锁值，相等则删除
         String luaScript = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end";
         // 实例化DefaultRedisScript对象
-        DefaultRedisScript<Boolean> script = new DefaultRedisScript<Boolean>();
+        DefaultRedisScript<Boolean> script = new DefaultRedisScript<>();
         script.setScriptText(luaScript);
         // 设置返回结果类型
         script.setResultType(Boolean.class);
@@ -387,16 +413,22 @@ public class RedisUtil {
      * @param hashKeys 哈希表键的集合（你需要获取的那些键）
      * @return
      */
-    @SuppressWarnings("unchecked")
     public <T, H> List<Map<H, T>> mHGet(List<String> keys, List<H> hashKeys) {
         List<Map<H, T>> hashList = new ArrayList<>();
         List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            List<byte[]> hkbs = hashKeys.stream().map(k -> k.toString().getBytes()).collect(Collectors.toList());
+            List<byte[]> hkbs = hashKeys.stream()
+                .map(k -> k.toString().getBytes())
+                .collect(Collectors.toList());
             for (String key : keys) {
                 connection.hMGet(key.getBytes(), hkbs.toArray(new byte[0][0]));
             }
             return null;
         });
+        
+        if (results == null) {
+            return hashList;
+        }
+        
         for (Object hv : results) {
             if (Objects.isNull(hv) || !(hv instanceof List)) {
                 continue;
@@ -405,7 +437,9 @@ public class RedisUtil {
             if (CollectionUtil.isEmpty(list)) {
                 continue;
             }
-            List<T> items = list.stream().map(o -> (T) o).collect(Collectors.toList());
+            List<T> items = list.stream()
+                .map(o -> (T) o)
+                .collect(Collectors.toList());
             Map<H, T> map = new LinkedHashMap<>();
             for (int i = 0; i < items.size(); i++) {
                 map.put(hashKeys.get(i), items.get(i));
@@ -414,5 +448,4 @@ public class RedisUtil {
         }
         return hashList;
     }
-
 }

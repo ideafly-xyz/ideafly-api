@@ -29,6 +29,12 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     @Resource
     private UsersService usersService;
 
+    @Resource
+    private JobFavoriteService jobFavoriteService;
+
+    @Resource
+    private JobLikesService jobLikesService;
+
     public Page<JobDetailOutputDto> getJobList(JobListInputDto request) {
         Page<Jobs> page = PageUtil.build(request);
         Page<Jobs> pageResult = this.lambdaQuery()
@@ -57,8 +63,25 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         dto.setSkills(CollUtil.newArrayList("Java", "Spring", "MySQL"));
         dto.setSalary("10k-20k");
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
+        
+        // 设置是否收藏和点赞状态
+        try {
+            Integer uid = UserContextHolder.getUid();
+            if (Objects.nonNull(uid)) {
+                // 如果用户已登录，查询是否已收藏
+                Boolean isFavorite = jobFavoriteService.isJobFavorite(job.getId());
+                dto.setIsFavorite(isFavorite);
+                
+                // 查询是否已点赞
+                Boolean isLike = jobLikesService.isJobLike(job.getId());
+                dto.setIsLike(isLike);
+            }
+        } catch (Exception e) {
+            // 如果获取用户ID失败或查询失败，保持默认值false
+            System.out.println("获取用户收藏/点赞状态失败: " + e.getMessage());
+        }
+        
         return dto;
-
     }
 
     public Jobs createJob(CreateJobInputDto request) {

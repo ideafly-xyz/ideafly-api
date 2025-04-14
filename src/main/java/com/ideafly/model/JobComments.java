@@ -3,6 +3,7 @@ package com.ideafly.model;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
+@TableName("job_comments")
 public class JobComments {
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id; // 评论ID
