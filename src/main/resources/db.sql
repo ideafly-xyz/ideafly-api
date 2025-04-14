@@ -53,7 +53,6 @@ CREATE TABLE `job_comments` (
                                 `parent_comment_id` INT UNSIGNED COMMENT '父级评论ID (用于实现评论回复)',
                                 `content` TEXT NOT NULL COMMENT '评论内容',
                                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                                 INDEX `idx_job_id` (`job_id`),
                                 INDEX `idx_user_id` (`user_id`),
                                 INDEX `idx_parent_comment_id` (`parent_comment_id`)

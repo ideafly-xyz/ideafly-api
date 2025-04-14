@@ -18,7 +18,6 @@ public class JobComments {
     private Integer parentCommentId; // 父级评论ID (用于实现评论回复)
     private String content; // 评论内容
     private LocalDateTime createdAt; // 创建时间
-    private LocalDateTime updatedAt; // 更新时间
     @TableField(exist = false)
     private List<JobComments> children = new ArrayList<>();
     @TableField(exist = false)
