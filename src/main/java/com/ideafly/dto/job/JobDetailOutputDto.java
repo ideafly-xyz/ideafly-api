@@ -12,23 +12,19 @@ public class JobDetailOutputDto {
     private Integer userId;
     private String publisherName;
     private String publisherAvatar;
-    private String title;
-    private String content;
+    private String postTitle;
+    private String postContent;
     private String contactInfo;
     private String company; // 公司
-    private String salary; // 薪资
     private List<String> tags; // 标签
     private List<String> skills; // 技能
     @Schema(description = "发布时间", name = "publish_time")
     private String publishTime;
     private LocalDateTime updatedAt;
     private Integer likes;
-    private Integer dislikes;
     private Integer favorites;
     private Integer comments;
+    private Integer shares;
     private Boolean isFavorite=false; // 是否收藏
     private Boolean isLike=false;
-    private Boolean isDislike=false;
-
-
 }

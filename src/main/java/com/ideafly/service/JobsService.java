@@ -49,6 +49,10 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
 
     public JobDetailOutputDto convertDto(Jobs job) {
         JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
+        // 设置title和content字段
+        dto.setPostTitle(job.getPostTitle());
+        dto.setPostContent(job.getPostContent());
+        
         Users user = usersService.getById(job.getUserId());
         if (Objects.nonNull(user)) {
             dto.setPublisherName(user.getNickname());
@@ -61,7 +65,6 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 RecruitmentType.fromCode(job.getRecruitmentType()).getDescription()
         ));
         dto.setSkills(CollUtil.newArrayList("Java", "Spring", "MySQL"));
-        dto.setSalary("10k-20k");
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
         
         // 设置是否收藏和点赞状态
@@ -86,6 +89,9 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
 
     public Jobs createJob(CreateJobInputDto request) {
         Jobs job = BeanUtil.copyProperties(request, Jobs.class);
+        // 确保正确设置字段，因为BeanUtil可能因字段名不同无法正确复制
+        job.setPostTitle(request.getPostTitle());
+        job.setPostContent(request.getPostContent());
         job.setUserId(UserContextHolder.getUid());
         this.save(job);
         return job;

@@ -36,6 +36,10 @@ CREATE TABLE `jobs` (
                         `work_type` SMALLINT UNSIGNED COMMENT '工作方式 (1=全职坐班, 2=远程工作, 3=线上兼职, 4=同城驻场)',
                         `city` SMALLINT UNSIGNED COMMENT '城市 (1=海外, 2=北京, 3=上海, 4=广州, 5=深圳, 6=杭州, 7=成都, 8=西安, 9=厦门, 10=武汉, 11=长沙, 12=苏州, 13=郑州, 14=南京, 15=云南, 16=海南, 17=大理, 18=其他)',
                         `industry_domain` SMALLINT UNSIGNED COMMENT '领域 (1=移动互联网, 2=电子商务, 3=教育培训, 4=金融, 5=IT服务, 6=人工智能, 7=游戏, 8=文化传媒, 9=医疗健康, 10=其他)',
+                        `likes` INT UNSIGNED DEFAULT 0 COMMENT '点赞数',
+                        `comments` INT UNSIGNED DEFAULT 0 COMMENT '评论数',
+                        `favorites` INT UNSIGNED DEFAULT 0 COMMENT '收藏数',
+                        `shares` INT UNSIGNED DEFAULT 0 COMMENT '分享数',
                         `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                         `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                         INDEX `idx_user_id` (`user_id`),
@@ -67,14 +71,6 @@ CREATE TABLE `job_likes` (
                              INDEX `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位点赞表';
 
-CREATE TABLE `job_dislikes` (
-                                `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '点踩ID',
-                                `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
-                                `user_id` INT UNSIGNED NOT NULL COMMENT '点踩用户ID (关联用户表)',
-                                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '点踩时间',
-                                INDEX `idx_job_id` (`job_id`),
-                                INDEX `idx_user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位点踩表';
 
 CREATE TABLE `job_favorites` (
                                  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '收藏ID',

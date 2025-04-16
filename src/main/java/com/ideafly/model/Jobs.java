@@ -15,9 +15,8 @@ public class Jobs {
 
     private Integer userId;
 
-    private String title;
-    private String content;
-    private String salary;
+    private String postTitle;
+    private String postContent;
     private String contactInfo;
 
     private Integer recruitmentType;
@@ -32,9 +31,9 @@ public class Jobs {
 
     private Integer industryDomain;
     private Integer likes;
-    private Integer dislikes;
     private Integer comments;
     private Integer favorites;
+    private Integer shares;
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
