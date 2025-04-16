@@ -11,9 +11,9 @@ spring:
   jackson:
     property-naming-strategy: SNAKE_CASE
   datasource:
-    url: jdbc:mysql://113.44.79.120:3306/ideafly?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8&useSSL=true&autoReconnect=true&zeroDateTimeBehavior=convertToNull&useOldAliasMetadataBehavior=true
+    url: jdbc:mysql://18.183.232.3:8546/ideafly?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8&useSSL=true&autoReconnect=true&zeroDateTimeBehavior=convertToNull&useOldAliasMetadataBehavior=true
     username: root
-    password: 123456
+    password: mypassword
     driver-class-name: com.mysql.cj.jdbc.Driver
   redis:
     host: localhost
