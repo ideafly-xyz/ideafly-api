@@ -67,21 +67,18 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         dto.setSkills(CollUtil.newArrayList("Java", "Spring", "MySQL"));
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
         
-        // 设置是否收藏和点赞状态
+        // 设置是否收藏和点赞状态 - 不再依赖用户登录状态
         try {
-            Integer uid = UserContextHolder.getUid();
-            if (Objects.nonNull(uid)) {
-                // 如果用户已登录，查询是否已收藏
-                Boolean isFavorite = jobFavoriteService.isJobFavorite(job.getId());
-                dto.setIsFavorite(isFavorite);
-                
-                // 查询是否已点赞
-                Boolean isLike = jobLikesService.isJobLike(job.getId());
-                dto.setIsLike(isLike);
-            }
+            // 查询是否已收藏
+            Boolean isFavorite = jobFavoriteService.isJobFavorite(job.getId());
+            dto.setIsFavorite(isFavorite);
+            
+            // 查询是否已点赞
+            Boolean isLike = jobLikesService.isJobLike(job.getId());
+            dto.setIsLike(isLike);
         } catch (Exception e) {
-            // 如果获取用户ID失败或查询失败，保持默认值false
-            System.out.println("获取用户收藏/点赞状态失败: " + e.getMessage());
+            // 如果查询失败，打印错误日志，但仍使用默认值
+            System.out.println("获取职位收藏/点赞状态失败: " + e.getMessage());
         }
         
         return dto;

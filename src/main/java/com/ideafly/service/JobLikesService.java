@@ -41,11 +41,23 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     public int getJobLikesCount(Integer jobId){
         return this.lambdaQuery().eq(JobLikes::getJobId, jobId).count().intValue();
     }
+    
+    /**
+     * 判断职位是否被点赞
+     * 修改后不再强制要求用户登录才能查看点赞状态
+     */
     public boolean isJobLike(Integer jobId){
+        // 获取当前用户ID（可能为null）
         Integer uid = UserContextHolder.getUid();
-        if (Objects.isNull(uid)) {
-            return false;
-        }
-        return this.lambdaQuery().eq(JobLikes::getJobId, jobId).eq(JobLikes::getUserId, uid).exists();
+        
+        // 如果有用户ID，检查该用户是否点赞了此职位
+        if (Objects.nonNull(uid)) {
+            return this.lambdaQuery().eq(JobLikes::getJobId, jobId).eq(JobLikes::getUserId, uid).exists();
+        } 
+        
+        // 即使没有用户ID，仍然返回该职位是否有点赞记录
+        // 根据职位点赞数判断，如果有点赞数则认为是已点赞
+        int likesCount = getJobLikesCount(jobId);
+        return likesCount > 0;
     }
 }

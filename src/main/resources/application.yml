@@ -52,5 +52,5 @@ aliyun:
     templateCode: SMS_478500181  # 替换为你的短信模板 Code
 jwt:
   secret: VyacG/skIsQm9uJLXc14MlI0fM9dzoMX/133l/6jrS8=  # 替换成你的 JWT 密钥 (务必保密!)
-  expiration: 3600000  # Token 过期时间，例如 1小时 (单位毫秒)
-  refreshExpiration: 86400000 # Refresh Token 过期时间，例如 1天 (单位毫秒)
+  expiration: 604800000  # Token过期时间，7天(单位毫秒) - 从1小时(3600000)改为7天
+  refreshExpiration: 2592000000 # Refresh Token过期时间，30天(单位毫秒) - 从1天(86400000)改为30天

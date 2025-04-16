@@ -36,11 +36,23 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
             jobsService.favorites(dto.getJobId(), true);
         }
     }
+    
+    /**
+     * 判断职位是否被当前用户收藏
+     * 修改后不再强制要求用户登录才能查看收藏状态
+     */
     public boolean isJobFavorite(Integer jobId) {
+        // 获取当前用户ID（可能为null）
         Integer uid = UserContextHolder.getUid();
-        if (Objects.isNull(uid)) {
-            return false;
+        
+        // 如果有用户ID，检查该用户是否收藏了此职位
+        if (Objects.nonNull(uid)) {
+            return this.lambdaQuery().eq(JobFavorite::getJobId, jobId).eq(JobFavorite::getUserId, uid).exists();
         }
-        return this.lambdaQuery().eq(JobFavorite::getJobId, jobId).eq(JobFavorite::getUserId, uid).exists();
+        
+        // 即使没有用户ID，仍然返回该职位是否有收藏记录
+        // 根据职位收藏数判断，如果有收藏数则认为是已收藏
+        int favoriteCount = this.lambdaQuery().eq(JobFavorite::getJobId, jobId).count().intValue();
+        return favoriteCount > 0;
     }
 }
