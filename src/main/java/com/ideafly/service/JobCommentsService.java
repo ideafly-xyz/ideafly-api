@@ -49,8 +49,8 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         Set<Integer> uIds = allComments.stream().map(JobComments::getUserId).collect(Collectors.toSet());
         Map<Integer, Users> usersMap = usersService.lambdaQuery().in(Users::getId, uIds).list().stream().collect(Collectors.toMap(Users::getId, user -> user));
         for (JobComments comment : allComments) {
-            comment.setUserName(usersMap.get(comment.getUserId()).getNickname());
-            comment.setUserAvatar(usersMap.get(comment.getUserId()).getAvatarUrl());
+            comment.setUserName(usersMap.get(comment.getUserId()).getUsername());
+            comment.setUserAvatar(usersMap.get(comment.getUserId()).getAvatar());
             Integer parentId = comment.getParentCommentId();
             if (parentId == null || parentId == 0) {
                 rootComments.add(comment);

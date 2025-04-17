@@ -37,4 +37,29 @@ public class UsersService extends ServiceImpl<UsersMapper, Users> {
         }
         return user;
     }
+    
+    public Users getUserByTelegramId(String telegramId) {
+        return this.lambdaQuery().eq(Users::getTelegramId, telegramId).one();
+    }
+    
+    public Users getOrAddByTelegramId(String telegramId, String firstName, String lastName) {
+        Users user = this.getUserByTelegramId(telegramId);
+        if (Objects.isNull(user)) {
+            user = new Users();
+            user.setTelegramId(telegramId);
+            
+            // 设置用户昵称
+            String nickname = firstName;
+            if (lastName != null && !lastName.isEmpty()) {
+                nickname += " " + lastName;
+            }
+            user.setUsername(nickname);
+            
+            // 为用户ID设置唯一标识符 (Telegram_<ID的后5位>)
+            user.setMobile("Telegram_" + telegramId.substring(Math.max(0, telegramId.length() - 5)));
+            
+            this.save(user);
+        }
+        return user;
+    }
 }

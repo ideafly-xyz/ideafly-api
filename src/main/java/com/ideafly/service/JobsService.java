@@ -55,8 +55,8 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         
         Users user = usersService.getById(job.getUserId());
         if (Objects.nonNull(user)) {
-            dto.setPublisherName(user.getNickname());
-            dto.setPublisherAvatar(user.getAvatarUrl());
+            dto.setPublisherName(user.getUsername());
+            dto.setPublisherAvatar(user.getAvatar());
         }
         dto.setTags(CollUtil.newArrayList(City.fromCode(job.getCity()).getDescription(),
                 IndustryDomain.fromCode(job.getIndustryDomain()).getDescription(),

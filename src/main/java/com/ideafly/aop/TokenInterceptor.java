@@ -69,13 +69,25 @@ public class TokenInterceptor implements HandlerInterceptor {
             return true;
 
         } catch (ExpiredJwtException e) { // Catch ExpiredJwtException specifically
-            response.setStatus(HttpStatus.OK.value()); // Still return 200 OK as before, adjust if needed
-            // 【修改处】 设置响应字符编码为 UTF-8
+            response.setStatus(HttpStatus.OK.value());
             response.setCharacterEncoding("UTF-8");
-            // 【修改处】 设置 Content-Type 为 application/json;charset=UTF-8，告知客户端返回的是 JSON 格式，并使用 UTF-8 编码
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.TOKEN_EXPIRED))); // Return specific TOKEN_EXPIRED error
             return false; // 拦截请求
+        } catch (io.jsonwebtoken.MalformedJwtException e) {
+            // 处理格式错误的JWT令牌
+            response.setStatus(HttpStatus.OK.value());
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.INVALID_TOKEN)));
+            return false;
+        } catch (Exception e) {
+            // 处理其他JWT验证异常
+            response.setStatus(HttpStatus.OK.value());
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.NO_AUTH)));
+            return false;
         }
     }
     @Override

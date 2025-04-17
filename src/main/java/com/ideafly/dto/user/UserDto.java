@@ -21,6 +21,7 @@ public class UserDto {
     private String websiteUrl; // 个人网站URL
     private String wechatId; // 微信号，唯一
     private String githubId; // GitHub ID，唯一
+    private String telegramId; // Telegram ID，唯一
     private LocalDateTime registrationTime; // 注册时间，默认当前时间戳
     private LocalDateTime lastLoginTime; // 最后登录时间
     private Integer accountStatus; // 账号状态，枚举类型：1 (激活), 2 (未激活), 3 (封禁), 0 (已删除)，默认 1
