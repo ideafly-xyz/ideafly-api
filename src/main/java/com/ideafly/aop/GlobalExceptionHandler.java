@@ -26,10 +26,17 @@ import java.util.stream.Collectors;
 @ControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+    // 常见错误的路径前缀，这些错误只记录简单信息，不记录堆栈跟踪
+    private static final String[] COMMON_ERROR_PATHS = {
+        "/api/jobs/list",
+        "/api/users/get",
+        "/api/common"
+    };
+    
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseBody
     public R<?> httpRequestMethodNotSupportedExceptionHandler(HttpRequestMethodNotSupportedException e) {
-        log.warn("http请求的方法不正确:【{}】", e.getMessage());
+        log.warn("http请求的方法不正确: {}", e.getMessage());
         return R.error(ErrorCode.PARAM_ERROR.getCode(),"http请求的方法不正确");
     }
 
@@ -39,9 +46,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseBody
     public R<?> missingServletRequestParameterExceptionHandler(MissingServletRequestParameterException e) {
-        log.warn("请求参数不全:【{}】", e.getMessage());
+        log.warn("请求参数不全: {}", e.getMessage());
         return R.error(ErrorCode.PARAM_ERROR.getCode(),"请求参数不全");
     }
+    
     @ResponseBody
     @ExceptionHandler({ConstraintViolationException.class})
     public R<?> constraintViolationException(Exception e) {
@@ -51,20 +59,33 @@ public class GlobalExceptionHandler {
             errorMsg.append(error.getMessage()).append(",");
         }
         errorMsg.delete(errorMsg.length() - 1, errorMsg.length());
+        log.warn("参数验证失败: {}", errorMsg);
         return R.error(ErrorCode.PARAM_ERROR.getCode(), errorMsg.toString());
     }
+    
     @ResponseBody
     @ExceptionHandler({HttpMessageNotReadableException.class})
     public R<?> jsonFormatExceptionHandler(Exception e) {
-        log.error("参数JSON格式错误,URL:{}", getCurrentRequestUrl(), e);
+        String url = getCurrentRequestUrl();
+        boolean isCommonError = isCommonErrorPath(url);
+        
+        if (isCommonError) {
+            log.warn("参数JSON格式错误, URL: {}", url);
+        } else {
+            log.error("参数JSON格式错误, URL: {}", url, e);
+        }
         return R.error(ErrorCode.PARAM_ERROR.getCode(), "参数JSON格式错误");
     }
+    
     @ResponseBody
     @ExceptionHandler({BadSqlGrammarException.class})
     public R<?> badSqlGrammarException(Exception e) {
-        log.error("执行sql异常,URL:{}", getCurrentRequestUrl(), e);
-        return R.error(ErrorCode.EXECUTE_SQL_ERROR.getCode(), e.getMessage());
+        String url = getCurrentRequestUrl();
+        // SQL错误总是记录详细信息，但可以简化消息
+        log.error("SQL执行异常, URL: {}, 错误: {}", url, e.getMessage());
+        return R.error(ErrorCode.EXECUTE_SQL_ERROR.getCode(), "数据库操作异常");
     }
+    
     /**
      * json 格式错误 缺少请求体
      */
@@ -75,44 +96,64 @@ public class GlobalExceptionHandler {
             if (e instanceof MethodArgumentNotValidException) {
                 List<FieldError> fieldErrors = ((MethodArgumentNotValidException) e).getBindingResult().getFieldErrors();
                 List<String> msgList = fieldErrors.stream().map(FieldError::getDefaultMessage).collect(Collectors.toList());
-                return R.error(ErrorCode.PARAM_ERROR.getCode(), String.join(",", msgList));
+                String errorMessage = String.join(",", msgList);
+                log.warn("参数验证失败: {}", errorMessage);
+                return R.error(ErrorCode.PARAM_ERROR.getCode(), errorMessage);
             }
             List<FieldError> fieldErrors = ((BindException) e).getFieldErrors();
             List<String> error = fieldErrors.stream().map(field -> field.getField() + ":" + field.getRejectedValue()).collect(Collectors.toList());
-            String errorMsg = ErrorCode.PARAM_ERROR.getMsg() + ":" + error;
+            String errorMsg = "参数错误: " + String.join(", ", error);
+            log.warn(errorMsg);
             return R.error(ErrorCode.PARAM_ERROR.getCode(), errorMsg);
         }
+        log.warn("参数类型不匹配: {}", e.getMessage());
         return R.error(ErrorCode.PARAM_ERROR.getCode(), ErrorCode.PARAM_ERROR.getMsg());
     }
 
-   /* *//**
-     * 其他全部异常
-     *
-     * @param e 全局异常
-     * @return 错误结果
-     *//*
+    /**
+     * 全局异常处理
+     */
     @ResponseBody
     @ExceptionHandler(Throwable.class)
-    public R<?> errorHandler(Throwable e) {
-        log.error("捕获全局异常,URL:{}", getCurrentRequestUrl(), e);
-        return R.error(ErrorCode.SYSTEM_ERROR.getCode(), ErrorCode.SYSTEM_ERROR.getMsg());
-    }*/
-    @ResponseBody
-    @ExceptionHandler(Throwable.class)
-    public  R<?> errorHandler(Exception e) {
-        log.error("捕获全局异常,URL:{}", getCurrentRequestUrl(), e);
-        // 你可以根据不同的异常类型返回不同的 ApiResponse
+    public R<?> errorHandler(Exception e) {
+        String url = getCurrentRequestUrl();
+        boolean isCommonError = isCommonErrorPath(url);
+        
+        if (isCommonError) {
+            // 对于高频API的错误，只记录简单日志，不记录堆栈跟踪
+            log.error("API错误, URL: {}, 异常类型: {}, 消息: {}", url, e.getClass().getSimpleName(), e.getMessage());
+        } else {
+            // 对于其他错误，记录完整堆栈跟踪
+            log.error("系统异常, URL: {}", url, e);
+        }
+        
         return R.error(ErrorCode.SYSTEM_ERROR.getCode(), ErrorCode.SYSTEM_ERROR.getMsg());
     }
+    
     /**
      * 获取当前请求url
      */
     private String getCurrentRequestUrl() {
         RequestAttributes request = RequestContextHolder.getRequestAttributes();
         if (null == request) {
-            return null;
+            return "unknown";
         }
         ServletRequestAttributes servletRequest = (ServletRequestAttributes) request;
         return servletRequest.getRequest().getRequestURI();
+    }
+    
+    /**
+     * 判断是否为高频错误API路径
+     */
+    private boolean isCommonErrorPath(String url) {
+        if (url == null) {
+            return false;
+        }
+        for (String path : COMMON_ERROR_PATHS) {
+            if (url.startsWith(path)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -2,6 +2,13 @@ server:
   port: 9999
   servlet:
     context-path: /
+  # 优化Tomcat性能
+  tomcat:
+    threads:
+      max: 200
+    max-connections: 8192
+    accept-count: 100
+    connection-timeout: 5000
 spring:
   main:
     allow-bean-definition-overriding: true
@@ -19,16 +26,30 @@ spring:
     username: root
     password: mypassword
     driver-class-name: com.mysql.cj.jdbc.Driver
+    # 使用HikariCP连接池并优化
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 1800000
   redis:
     host: localhost
     port: 6379
     password: 123456
     database: 0
+    # 优化Redis连接
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 2
+        max-wait: 100ms
 logging:
   level:
-    com.ideafly.mapper: debug
-    com.baomidou: debug
-    org.springframework: INFO
+    com.ideafly.mapper: warn
+    com.baomidou: warn
+    org.springframework: warn
   file:
     path: ./logs
 knife4j:
@@ -69,5 +90,19 @@ telegram:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 关闭控制台日志输出
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+    # 开启二级缓存
+    cache-enabled: true
+    # 设置本地缓存范围
+    local-cache-scope: statement
+    # 关闭JDBC操作资源自动释放
+    call-setters-on-nulls: true
   mapper-locations: classpath:mapper/*.xml
+  # 全局配置
+  global-config:
+    db-config:
+      # 使用自增策略
+      id-type: auto
+    # 禁用banner
+    banner: false

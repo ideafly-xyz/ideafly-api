@@ -1,98 +1,166 @@
 package com.ideafly.aop;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.json.JSON;
-import cn.hutool.json.JSONUtil;
-import com.ideafly.aop.anno.NoAuth;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideafly.common.ErrorCode;
 import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.user.UserDto;
-import com.ideafly.service.UsersService;
-import com.ideafly.utils.JwtUtil;
-import io.jsonwebtoken.ExpiredJwtException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import com.ideafly.entity.dto.LoginUser;
+import com.ideafly.service.TokenManagerService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
-import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.ModelAndView;
 
-import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Objects;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.regex.Pattern;
 
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class TokenInterceptor implements HandlerInterceptor {
 
-    @Resource
-    private JwtUtil jwtUtil;
-    @Autowired
-    private UsersService usersService;
+    private final TokenManagerService tokenManagerService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // 静态资源路径正则
+    private static final Pattern RESOURCE_PATTERN = Pattern.compile(".*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$");
+    
+    // 不需要验证token的路径
+    private static final String[] WHITE_LIST = {
+            "/api/user/login",
+            "/api/user/register",
+            "/api/auth/telegram",    // Telegram登录相关
+            "/api/auth/refreshToken", // Token刷新
+            "/api/sms/sendSms",      // 短信验证码
+            "/api/sms/login",        // 短信登录
+            "/api/jobs/list",        // 职位列表（公开）
+            "/swagger",
+            "/v2/api-docs",
+            "/v3/api-docs",
+            "/webjars/",
+            "/doc.html"
+    };
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 如果不是HandlerMethod，直接放行 (例如：静态资源)
-        if (!(handler instanceof HandlerMethod)) {
+        String url = request.getRequestURI();
+        
+        // 调试输出当前请求和拦截结果
+        log.debug("TokenInterceptor处理URL: {}", url);
+        
+        // 快速判断是否为静态资源请求
+        if (RESOURCE_PATTERN.matcher(url).matches()) {
+            log.debug("静态资源请求，跳过认证: {}", url);
             return true;
         }
-        HandlerMethod handlerMethod = (HandlerMethod) handler;
-        // 检查方法上是否有 @NoAuth 注解
-        NoAuth noAuthAnnotation = handlerMethod.getMethodAnnotation(NoAuth.class);
-
-        // 如果有 @NoAuth 注解，直接放行，不需要Token验证
-        if (Objects.nonNull(noAuthAnnotation)) {
+        
+        // 检查是否为白名单URL
+        if (isWhiteListUrl(url)) {
+            log.debug("白名单URL，跳过认证: {}", url);
             return true;
         }
 
-        // 从请求头中获取 Authorization
-        String authorizationHeader = request.getHeader("Authorization");
-        String token = null;
-
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            token = authorizationHeader.substring(7); // 去除 "Bearer " 前缀
-        }
-
-        // 如果token为空或者无效，返回 401 Unauthorized
-        try { // Add try-catch block
-            if (token == null || !jwtUtil.isTokenValid(token, jwtUtil.extractPhoneNumber(token))) { //  更严谨的验证方式，同时验证token和phoneNumber
-                response.setStatus(HttpStatus.OK.value());
-                response.setCharacterEncoding("UTF-8");
-                response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.NO_AUTH))); // 返回 JSON 错误信息
-                return false; // 拦截请求
+        // 从请求头中获取token
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || authHeader.isEmpty()) {
+            // 如果是OPTIONS请求，表示这是预检请求，直接放行
+            if ("OPTIONS".equals(request.getMethod())) {
+                return true;
             }
-            String phoneNumber = jwtUtil.extractPhoneNumber(token);
-            UserDto userDto= BeanUtil.copyProperties(usersService.getUserByMobile(phoneNumber),UserDto.class);
-            UserContextHolder.setUser(userDto); //  将 UserDTO 放入 ThreadLocal
-            // Token 验证通过，放行请求
-            return true;
-
-        } catch (ExpiredJwtException e) { // Catch ExpiredJwtException specifically
-            response.setStatus(HttpStatus.OK.value());
-            response.setCharacterEncoding("UTF-8");
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.TOKEN_EXPIRED))); // Return specific TOKEN_EXPIRED error
-            return false; // 拦截请求
-        } catch (io.jsonwebtoken.MalformedJwtException e) {
-            // 处理格式错误的JWT令牌
-            response.setStatus(HttpStatus.OK.value());
-            response.setCharacterEncoding("UTF-8");
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.INVALID_TOKEN)));
+            
+            // 对于其他请求，返回未授权错误
+            log.warn("缺少Authorization头，拒绝访问: {}", url);
+            responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "未登录，请先登录"));
             return false;
+        }
+
+        try {
+            // 提取token，移除Bearer前缀和空格
+            String token = extractToken(authHeader);
+            log.debug("提取的token: {}", token);
+            
+            // 验证token并获取用户信息
+            LoginUser loginUser = tokenManagerService.getUserByToken(token);
+            
+            if (loginUser == null) {
+                // token无效或过期
+                log.warn("无效的token，拒绝访问: {}", url);
+                responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "登录已过期，请重新登录"));
+                return false;
+            }
+            
+            // 将用户信息存入请求属性
+            request.setAttribute("loginUser", loginUser);
+            
+            // 同时存入UserContextHolder，兼容现有代码
+            UserDto userDto = new UserDto();
+            BeanUtils.copyProperties(loginUser, userDto);
+            UserContextHolder.setUser(userDto);
+            
+            log.debug("用户认证成功: {}, URL: {}", loginUser.getUsername(), url);
+            return true;
         } catch (Exception e) {
-            // 处理其他JWT验证异常
-            response.setStatus(HttpStatus.OK.value());
-            response.setCharacterEncoding("UTF-8");
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(JSONUtil.toJsonStr(R.error(ErrorCode.NO_AUTH)));
+            // 只记录简洁的错误信息，不打印堆栈
+            log.warn("Token验证失败: URL={}, 错误={}", url, e.getMessage());
+            responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "登录已过期，请重新登录"));
             return false;
         }
     }
+
+    /**
+     * 从Authorization头中提取token
+     * 移除Bearer前缀和多余的空格
+     */
+    private String extractToken(String authHeader) {
+        // 去除头尾空格
+        String trimmed = authHeader.trim();
+        
+        // 检查并移除Bearer前缀
+        if (trimmed.startsWith("Bearer ")) {
+            return trimmed.substring(7).trim();
+        } else if (trimmed.startsWith("bearer ")) {
+            return trimmed.substring(7).trim();
+        }
+        
+        // 没有前缀，直接返回
+        return trimmed;
+    }
+
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
-        // 【新增代码】 请求完成后，清除 ThreadLocal 中的用户信息，防止内存泄漏
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) {
+        // 无需操作
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        // 请求结束后清理上下文
+        request.removeAttribute("loginUser");
         UserContextHolder.removeUser();
+    }
+
+    /**
+     * 检查URL是否在白名单中
+     */
+    private boolean isWhiteListUrl(String url) {
+        return Arrays.stream(WHITE_LIST).anyMatch(url::startsWith);
+    }
+
+    /**
+     * 返回错误响应
+     */
+    private void responseError(HttpServletResponse response, R<?> result) throws IOException {
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/json; charset=utf-8");
+        
+        try (PrintWriter out = response.getWriter()) {
+            out.append(objectMapper.writeValueAsString(result));
+        }
     }
 }

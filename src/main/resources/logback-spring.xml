@@ -4,37 +4,69 @@
     <!-- 定义日志存放路径 -->
     <property name="LOG_HOME" value="./logs"/>
 
-    <!-- 定义日志存放路径 -->
-    <property name="LOG_HOME" value="./logs"/>
+    <!-- 日志过滤规则，避免输出过多无用日志 -->
+    <property name="EXCLUDED_URLS" value=".*(css|js|png|ico|jpg|jpeg|gif|html|xml)$"/>
 
     <!-- 控制台输出 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+                <marker>DB_LOG</marker>
+            </evaluator>
+            <onMismatch>NEUTRAL</onMismatch>
+            <onMatch>DENY</onMatch>
+        </filter>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n</pattern>
         </encoder>
     </appender>
 
     <!-- 文件输出，按日期分割文件 -->
     <appender name="DAILY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <!-- 不指定 file 属性 -->
-        <!-- 直接按日期分割文件 -->
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <!-- 日期格式的文件名模式 -->
-            <fileNamePattern>${LOG_HOME}/jump.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>30</maxHistory> <!-- 保留最近30天的日志 -->
+            <fileNamePattern>${LOG_HOME}/ideafly.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory> <!-- 只保留7天的日志 -->
+            <totalSizeCap>1GB</totalSizeCap> <!-- 所有日志最大1GB -->
         </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
 
+    <!-- 错误日志单独记录 -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory> <!-- 错误日志保留30天 -->
+        </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
     <!-- 设置日志级别 -->
-    <root level="info">
+    <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="DAILY_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
     </root>
 
-    <!-- 指定包的日志级别 -->
-    <logger name="com.baomidou" level="debug"/>
+    <!-- 减少框架日志输出 -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.apache" level="WARN"/>
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="io.undertow" level="WARN"/>
+    <logger name="org.xnio" level="WARN"/>
+    
+    <!-- 数据库操作日志 -->
+    <logger name="com.baomidou" level="WARN"/>
+    <logger name="com.ideafly.mapper" level="WARN"/>
+    <logger name="org.mybatis" level="WARN"/>
+    
+    <!-- 自定义业务日志级别 -->
+    <logger name="com.ideafly.service" level="INFO"/>
+    <logger name="com.ideafly.controller" level="INFO"/>
 </configuration>

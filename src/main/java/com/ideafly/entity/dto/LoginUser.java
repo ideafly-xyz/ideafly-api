@@ -1,0 +1,18 @@
+package com.ideafly.entity.dto;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * 登录用户信息数据传输对象
+ */
+@Data
+@NoArgsConstructor
+public class LoginUser {
+    private Integer id;
+    private String username;
+    private String mobile;
+    private String email;
+    private String avatar;
+    private Integer role;
+} 
