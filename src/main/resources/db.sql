@@ -70,3 +70,16 @@ CREATE TABLE `job_favorites` (
                                  INDEX `idx_job_id` (`job_id`),
                                  INDEX `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位收藏表';
+
+CREATE TABLE `user_follows` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '关注关系ID',
+    `follower_id` INT UNSIGNED NOT NULL COMMENT '关注者用户ID (谁关注别人)',
+    `followed_id` INT UNSIGNED NOT NULL COMMENT '被关注者用户ID (被关注的人)',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '关注时间',
+    `status` TINYINT DEFAULT 1 COMMENT '关注状态: 1(有效), 0(已取消)',
+    UNIQUE KEY `unique_follow` (`follower_id`, `followed_id`) COMMENT '防止重复关注',
+    INDEX `idx_follower_id` (`follower_id`),
+    INDEX `idx_followed_id` (`followed_id`),
+    INDEX `idx_status` (`status`),
+    CONSTRAINT `chk_self_follow` CHECK (`follower_id` != `followed_id`) COMMENT '防止自己关注自己'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户关注关系表';
