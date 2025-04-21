@@ -17,19 +17,7 @@ public class Jobs {
 
     private String postTitle;
     private String postContent;
-    private String contactInfo;
-
-    private Integer recruitmentType;
-
-
-    private Integer profession;
-
-
-    private Integer workType;
-
-    private Integer city;
-
-    private Integer industryDomain;
+    
     private Integer likes;
     private Integer comments;
     private Integer favorites;
@@ -37,5 +25,4 @@ public class Jobs {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
-
 }

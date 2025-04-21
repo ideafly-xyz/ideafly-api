@@ -38,9 +38,6 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     public Page<JobDetailOutputDto> getJobList(JobListInputDto request) {
         Page<Jobs> page = PageUtil.build(request);
         Page<Jobs> pageResult = this.lambdaQuery()
-                .eq(StrUtil.isNotBlank(request.getCity()), Jobs::getCity, request.getCity())
-                .eq(StrUtil.isNotBlank(request.getProfession()), Jobs::getProfession, request.getProfession())
-                .eq(StrUtil.isNotBlank(request.getRecruitmentType()), Jobs::getRecruitmentType, request.getRecruitmentType())
                 .orderByDesc(Jobs::getId)
                 .page(page);
         List<JobDetailOutputDto> list = pageResult.getRecords().stream().map(this::convertDto).collect(Collectors.toList());
@@ -58,13 +55,9 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             dto.setPublisherName(user.getUsername());
             dto.setPublisherAvatar(user.getAvatar());
         }
-        dto.setTags(CollUtil.newArrayList(City.fromCode(job.getCity()).getDescription(),
-                IndustryDomain.fromCode(job.getIndustryDomain()).getDescription(),
-                WorkType.fromCode(job.getWorkType()).getDescription(),
-                Profession.fromCode(job.getProfession()).getDescription(),
-                RecruitmentType.fromCode(job.getRecruitmentType()).getDescription()
-        ));
-        dto.setSkills(CollUtil.newArrayList("Java", "Spring", "MySQL"));
+        // 设置空标签和技能
+        dto.setTags(CollUtil.newArrayList());
+        dto.setSkills(CollUtil.newArrayList());
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
         
         // 设置是否收藏和点赞状态 - 不再依赖用户登录状态
@@ -78,15 +71,15 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             dto.setIsLike(isLike);
         } catch (Exception e) {
             // 如果查询失败，打印错误日志，但仍使用默认值
-            System.out.println("获取职位收藏/点赞状态失败: " + e.getMessage());
+            System.out.println("获取作品收藏/点赞状态失败: " + e.getMessage());
         }
         
         return dto;
     }
 
     public Jobs createJob(CreateJobInputDto request) {
-        Jobs job = BeanUtil.copyProperties(request, Jobs.class);
-        // 确保正确设置字段，因为BeanUtil可能因字段名不同无法正确复制
+        Jobs job = new Jobs();
+        // 只设置标题和内容字段
         job.setPostTitle(request.getPostTitle());
         job.setPostContent(request.getPostContent());
         job.setUserId(UserContextHolder.getUid());

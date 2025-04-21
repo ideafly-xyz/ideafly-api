@@ -6,8 +6,6 @@ import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class JobListInputDto  extends PageBaseInputDto {
-    private String city;
-    private String profession;
-    private String recruitmentType;
+public class JobListInputDto extends PageBaseInputDto {
+    // 保留为空类，仅继承分页功能
 }
