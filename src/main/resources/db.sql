@@ -53,22 +53,27 @@ CREATE TABLE `job_comments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位评论表';
 
 CREATE TABLE `job_likes` (
-                             `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '点赞ID',
-                             `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
-                             `user_id` INT UNSIGNED NOT NULL COMMENT '点赞用户ID (关联用户表)',
-                             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
-                             INDEX `idx_job_id` (`job_id`),
-                             INDEX `idx_user_id` (`user_id`)
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '点赞ID',
+    `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
+    `user_id` INT UNSIGNED NOT NULL COMMENT '点赞用户ID (关联用户表)',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
+    `status` TINYINT DEFAULT 1 COMMENT '点赞状态: 1(有效), 0(已取消)',
+    UNIQUE KEY `unique_like` (`job_id`, `user_id`) COMMENT '防止重复点赞',
+    INDEX `idx_job_id` (`job_id`),
+    INDEX `idx_user_id` (`user_id`),
+    INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位点赞表';
 
-
 CREATE TABLE `job_favorites` (
-                                 `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '收藏ID',
-                                 `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
-                                 `user_id` INT UNSIGNED NOT NULL COMMENT '收藏用户ID (关联用户表)',
-                                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
-                                 INDEX `idx_job_id` (`job_id`),
-                                 INDEX `idx_user_id` (`user_id`)
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '收藏ID',
+    `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
+    `user_id` INT UNSIGNED NOT NULL COMMENT '收藏用户ID (关联用户表)',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+    `status` TINYINT DEFAULT 1 COMMENT '收藏状态: 1(有效), 0(已取消)',
+    UNIQUE KEY `unique_favorite` (`job_id`, `user_id`) COMMENT '防止重复收藏',
+    INDEX `idx_job_id` (`job_id`),
+    INDEX `idx_user_id` (`user_id`),
+    INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位收藏表';
 
 CREATE TABLE `user_follows` (
