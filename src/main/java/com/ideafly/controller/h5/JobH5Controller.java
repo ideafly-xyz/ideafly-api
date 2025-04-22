@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
+import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.job.*;
 import com.ideafly.model.JobComments;
 import com.ideafly.model.Jobs;
@@ -11,6 +12,7 @@ import com.ideafly.service.JobCommentsService;
 import com.ideafly.service.JobFavoriteService;
 import com.ideafly.service.JobLikesService;
 import com.ideafly.service.JobsService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +22,7 @@ import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "职位相关接口")
+@Tag(name = "工作相关接口", description = "工作相关接口")
 @RestController
 @RequestMapping("/api/jobs")
 public class JobH5Controller {
@@ -46,10 +48,19 @@ public class JobH5Controller {
         Jobs job = jobService.createJob(request);
         return R.success(Boolean.TRUE);
     }
-    @PostMapping("like")
-    public R<Boolean> like(@Valid @RequestBody JobLikeInputDto request) { //  使用 @Valid 注解开启参数校验
-      jobLikesService.addOrRemoveLike(request);
-        return R.success(Boolean.TRUE);
+    @PostMapping("/like")
+    @Operation(summary = "点赞", description = "点赞功能")
+    public R<Boolean> like(@RequestBody @Valid JobLikeInputDto request) {
+        System.out.println("收到点赞请求 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike() + ", 用户ID: " + UserContextHolder.getUid());
+        try {
+            jobLikesService.addOrRemoveLike(request);
+            System.out.println("点赞操作成功 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike());
+            return R.success(Boolean.TRUE);
+        } catch (Exception e) {
+            System.out.println("点赞操作失败 - " + e.getMessage());
+            e.printStackTrace();
+            return R.error("点赞失败: " + e.getMessage());
+        }
     }
     @PostMapping("favorite")
     public R<Boolean> favorite(@Valid @RequestBody JobFavoriteInputDto request) { //  使用 @Valid 注解开启参数校验

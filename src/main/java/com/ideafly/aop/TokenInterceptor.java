@@ -40,12 +40,16 @@ public class TokenInterceptor implements HandlerInterceptor {
             "/api/auth/refreshToken", // Token刷新
             "/api/sms/sendSms",      // 短信验证码
             "/api/sms/login",        // 短信登录
-            "/api/jobs/list",        // 职位列表（公开）
             "/swagger",
             "/v2/api-docs",
             "/v3/api-docs",
             "/webjars/",
             "/doc.html"
+    };
+    
+    // 允许匿名访问但尝试提取token的路径
+    private static final String[] PUBLIC_PATHS = {
+            "/api/jobs/list"         // 职位列表（公开，但尝试获取用户信息）
     };
 
     @Override
@@ -69,9 +73,19 @@ public class TokenInterceptor implements HandlerInterceptor {
 
         // 从请求头中获取token
         String authHeader = request.getHeader("Authorization");
+        
+        // 检查是否为公开访问但尝试获取用户信息的路径
+        boolean isPublicPath = isPublicPath(url);
+        
         if (authHeader == null || authHeader.isEmpty()) {
             // 如果是OPTIONS请求，表示这是预检请求，直接放行
             if ("OPTIONS".equals(request.getMethod())) {
+                return true;
+            }
+            
+            // 如果是公开访问路径，则允许访问但不设置用户上下文
+            if (isPublicPath) {
+                log.debug("公开访问路径，允许匿名访问: {}", url);
                 return true;
             }
             
@@ -92,6 +106,13 @@ public class TokenInterceptor implements HandlerInterceptor {
             if (loginUser == null) {
                 // token无效或过期
                 log.warn("无效的token，拒绝访问: {}", url);
+                
+                // 如果是公开访问路径，仍允许访问
+                if (isPublicPath) {
+                    log.debug("公开访问路径，允许匿名访问: {}", url);
+                    return true;
+                }
+                
                 responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "登录已过期，请重新登录"));
                 return false;
             }
@@ -109,6 +130,13 @@ public class TokenInterceptor implements HandlerInterceptor {
         } catch (Exception e) {
             // 只记录简洁的错误信息，不打印堆栈
             log.warn("Token验证失败: URL={}, 错误={}", url, e.getMessage());
+            
+            // 如果是公开访问路径，仍允许访问
+            if (isPublicPath) {
+                log.debug("公开访问路径，允许匿名访问: {}", url);
+                return true;
+            }
+            
             responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "登录已过期，请重新登录"));
             return false;
         }
@@ -150,6 +178,13 @@ public class TokenInterceptor implements HandlerInterceptor {
      */
     private boolean isWhiteListUrl(String url) {
         return Arrays.stream(WHITE_LIST).anyMatch(url::startsWith);
+    }
+    
+    /**
+     * 检查URL是否在公开访问路径中
+     */
+    private boolean isPublicPath(String url) {
+        return Arrays.stream(PUBLIC_PATHS).anyMatch(url::startsWith);
     }
 
     /**

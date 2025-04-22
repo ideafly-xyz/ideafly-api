@@ -74,11 +74,17 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
      * 判断用户是否点赞了职位
      */
     public boolean isJobLikedByUser(Integer jobId, Integer userId) {
-        return this.lambdaQuery()
+        // 添加调试日志
+        System.out.println("检查点赞状态 - jobId: " + jobId + ", userId: " + userId);
+        
+        boolean result = this.lambdaQuery()
             .eq(JobLikes::getJobId, jobId)
             .eq(JobLikes::getUserId, userId)
             .eq(JobLikes::getStatus, 1) // 只检查有效点赞
             .exists();
+            
+        System.out.println("点赞状态查询结果: " + result);
+        return result;
     }
     
     /**

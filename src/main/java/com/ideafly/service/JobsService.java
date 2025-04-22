@@ -60,24 +60,42 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         dto.setSkills(CollUtil.newArrayList());
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
         
-        // 设置是否收藏和点赞状态 - 不再依赖用户登录状态
+        // 设置是否收藏和点赞状态
         try {
             // 获取当前用户ID
             Integer uid = UserContextHolder.getUid();
+            System.out.println("转换DTO - 职位ID:" + job.getId() + ", 当前用户ID:" + uid);
             
-            // 查询是否已收藏
-            Boolean isFavorite = jobFavoriteService.isJobFavorite(job.getId());
-            dto.setIsFavorite(isFavorite);
+            // 默认设置为false
+            dto.setIsLike(false);
+            dto.setIsFavorite(false);
             
-            // 查询是否已点赞 - 改用直接检查点赞记录
-            Boolean isLike = false;
+            // 只有登录用户才能获取收藏和点赞状态
             if (uid != null) {
-                isLike = jobLikesService.isJobLikedByUser(job.getId(), uid);
+                // 查询是否已收藏
+                try {
+                    Boolean isFavorite = jobFavoriteService.isJobFavorite(job.getId());
+                    dto.setIsFavorite(isFavorite);
+                    System.out.println("职位ID:" + job.getId() + ", 收藏状态:" + isFavorite);
+                } catch (Exception e) {
+                    System.out.println("获取收藏状态异常: " + e.getMessage());
+                }
+                
+                // 查询是否已点赞
+                try {
+                    Boolean isLike = jobLikesService.isJobLikedByUser(job.getId(), uid);
+                    dto.setIsLike(isLike);
+                    System.out.println("职位ID:" + job.getId() + ", 点赞状态:" + isLike);
+                } catch (Exception e) {
+                    System.out.println("获取点赞状态异常: " + e.getMessage());
+                }
+            } else {
+                System.out.println("用户未登录，设置默认收藏和点赞状态为false");
             }
-            dto.setIsLike(isLike);
         } catch (Exception e) {
             // 如果查询失败，打印错误日志，但仍使用默认值
             System.out.println("获取作品收藏/点赞状态失败: " + e.getMessage());
+            e.printStackTrace();
         }
         
         return dto;
