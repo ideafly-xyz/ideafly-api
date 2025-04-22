@@ -4,14 +4,14 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.job.JobFavoriteInputDto;
 import com.ideafly.mapper.JobFavoriteMapper;
-import com.ideafly.model.JobFavorite;
+import com.ideafly.model.JobFavorites;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.Objects;
 
 @Service
-public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavorite> {
+public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavorites> {
 
     @Resource
     private JobsService jobsService;
@@ -20,39 +20,69 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
      */
     public void addOrRemoveFavorite(JobFavoriteInputDto dto) {
         Integer uid = UserContextHolder.getUid();
-        JobFavorite favorite = this.lambdaQuery().eq(JobFavorite::getJobId, dto.getJobId()).eq(JobFavorite::getUserId, uid).one();
-        // 取消收藏
-        if (Objects.nonNull(favorite) && Objects.equals(dto.getIsFavorite(),0) ) {
-            this.removeById(favorite);
-            jobsService.favorites(dto.getJobId(), false);
-            return;
-        }
-        // 收藏
-        if(Objects.isNull(favorite) && Objects.equals(dto.getIsFavorite(),1)){
-            JobFavorite jobFavorite = new JobFavorite();
-            jobFavorite.setUserId(uid);
-            jobFavorite.setJobId(dto.getJobId());
-            this.save(jobFavorite);
-            jobsService.favorites(dto.getJobId(), true);
+        
+        // 查找是否存在收藏记录
+        JobFavorites favorite = this.lambdaQuery()
+            .eq(JobFavorites::getJobId, dto.getJobId())
+            .eq(JobFavorites::getUserId, uid)
+            .one();
+            
+        // 判断操作类型
+        if (Objects.equals(dto.getIsFavorite(), 1)) {
+            // 添加收藏
+            if (Objects.isNull(favorite)) {
+                // 无记录，创建新记录
+                JobFavorites jobFavorite = new JobFavorites();
+                jobFavorite.setUserId(uid);
+                jobFavorite.setJobId(dto.getJobId());
+                jobFavorite.setStatus(1); // 有效状态
+                this.save(jobFavorite);
+                jobsService.favorites(dto.getJobId(), true);
+            } else if (favorite.getStatus() == 0) {
+                // 有记录但已取消，更新状态
+                favorite.setStatus(1);
+                this.updateById(favorite);
+                jobsService.favorites(dto.getJobId(), true);
+            }
+            // 已经收藏的不做处理
+        } else {
+            // 取消收藏
+            if (Objects.nonNull(favorite) && favorite.getStatus() == 1) {
+                // 更新状态为取消
+                favorite.setStatus(0);
+                this.updateById(favorite);
+                jobsService.favorites(dto.getJobId(), false);
+            }
+            // 不存在或已取消的不做处理
         }
     }
     
     /**
      * 判断职位是否被当前用户收藏
-     * 修改后不再强制要求用户登录才能查看收藏状态
      */
     public boolean isJobFavorite(Integer jobId) {
-        // 获取当前用户ID（可能为null）
+        // 获取当前用户ID
         Integer uid = UserContextHolder.getUid();
         
         // 如果有用户ID，检查该用户是否收藏了此职位
         if (Objects.nonNull(uid)) {
-            return this.lambdaQuery().eq(JobFavorite::getJobId, jobId).eq(JobFavorite::getUserId, uid).exists();
+            return this.lambdaQuery()
+                .eq(JobFavorites::getJobId, jobId)
+                .eq(JobFavorites::getUserId, uid)
+                .eq(JobFavorites::getStatus, 1) // 只检查有效收藏
+                .exists();
         }
         
-        // 即使没有用户ID，仍然返回该职位是否有收藏记录
-        // 根据职位收藏数判断，如果有收藏数则认为是已收藏
-        int favoriteCount = this.lambdaQuery().eq(JobFavorite::getJobId, jobId).count().intValue();
-        return favoriteCount > 0;
+        return false;
+    }
+    
+    /**
+     * 获取职位收藏数量
+     */
+    public int getJobFavoritesCount(Integer jobId) {
+        return this.lambdaQuery()
+            .eq(JobFavorites::getJobId, jobId)
+            .eq(JobFavorites::getStatus, 1) // 只计算有效收藏
+            .count().intValue();
     }
 }

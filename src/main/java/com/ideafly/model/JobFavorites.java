@@ -9,8 +9,8 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-@TableName("job_likes")
-public class JobLikes {
+@TableName("job_favorites")
+public class JobFavorites {
     @TableId(type = IdType.AUTO)
     private Integer id;
     private Integer jobId;
@@ -18,4 +18,4 @@ public class JobLikes {
     private Integer status;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date createdAt;
-}
+} 

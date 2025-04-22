@@ -17,47 +17,78 @@ import java.util.Objects;
 public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     @Resource
     private JobsService jobsService;
+    
     /**
-     * 收藏或者取消收藏
+     * 添加或取消点赞
      */
     public void addOrRemoveLike(JobLikeInputDto dto) {
         Integer uid = UserContextHolder.getUid();
-        JobLikes like = this.lambdaQuery().eq(JobLikes::getJobId, dto.getJobId()).eq(JobLikes::getUserId, uid).one();
-        // 取消点赞
-        if (Objects.nonNull(like) && Objects.equals(dto.getIsLike(),0) ) {
-            this.removeById(like);
-            jobsService.likes(dto.getJobId(), false);
-            return;
+        
+        // 查找是否存在点赞记录
+        JobLikes like = this.lambdaQuery()
+            .eq(JobLikes::getJobId, dto.getJobId())
+            .eq(JobLikes::getUserId, uid)
+            .one();
+            
+        // 判断操作类型
+        if (Objects.equals(dto.getIsLike(), 1)) {
+            // 添加点赞
+            if (Objects.isNull(like)) {
+                // 无记录，创建新记录
+                JobLikes jobLike = new JobLikes();
+                jobLike.setUserId(uid);
+                jobLike.setJobId(dto.getJobId());
+                jobLike.setStatus(1); // 有效状态
+                this.save(jobLike);
+                jobsService.likes(dto.getJobId(), true);
+            } else if (like.getStatus() == 0) {
+                // 有记录但已取消，更新状态
+                like.setStatus(1);
+                this.updateById(like);
+                jobsService.likes(dto.getJobId(), true);
+            }
+            // 已经点赞的不做处理
+        } else {
+            // 取消点赞
+            if (Objects.nonNull(like) && like.getStatus() == 1) {
+                // 更新状态为取消
+                like.setStatus(0);
+                this.updateById(like);
+                jobsService.likes(dto.getJobId(), false);
+            }
+            // 不存在或已取消的不做处理
         }
-        // 点赞
-        if(Objects.isNull(like) && Objects.equals(dto.getIsLike(),1)){
-            JobLikes jobLikes = new JobLikes();
-            jobLikes.setUserId(uid);
-            jobLikes.setJobId(dto.getJobId());
-            this.save(jobLikes);
-            jobsService.likes(dto.getJobId(), true);
-        }
-    }
-    public int getJobLikesCount(Integer jobId){
-        return this.lambdaQuery().eq(JobLikes::getJobId, jobId).count().intValue();
     }
     
     /**
-     * 判断职位是否被点赞
-     * 修改后不再强制要求用户登录才能查看点赞状态
+     * 获取职位点赞数量
      */
-    public boolean isJobLike(Integer jobId){
-        // 获取当前用户ID（可能为null）
+    public int getJobLikesCount(Integer jobId) {
+        return this.lambdaQuery()
+            .eq(JobLikes::getJobId, jobId)
+            .eq(JobLikes::getStatus, 1) // 只计算有效点赞
+            .count().intValue();
+    }
+    
+    /**
+     * 判断用户是否点赞了职位
+     */
+    public boolean isJobLikedByUser(Integer jobId, Integer userId) {
+        return this.lambdaQuery()
+            .eq(JobLikes::getJobId, jobId)
+            .eq(JobLikes::getUserId, userId)
+            .eq(JobLikes::getStatus, 1) // 只检查有效点赞
+            .exists();
+    }
+    
+    /**
+     * 判断当前登录用户是否点赞了职位
+     */
+    public boolean isJobLike(Integer jobId) {
         Integer uid = UserContextHolder.getUid();
-        
-        // 如果有用户ID，检查该用户是否点赞了此职位
         if (Objects.nonNull(uid)) {
-            return this.lambdaQuery().eq(JobLikes::getJobId, jobId).eq(JobLikes::getUserId, uid).exists();
-        } 
-        
-        // 即使没有用户ID，仍然返回该职位是否有点赞记录
-        // 根据职位点赞数判断，如果有点赞数则认为是已点赞
-        int likesCount = getJobLikesCount(jobId);
-        return likesCount > 0;
+            return isJobLikedByUser(jobId, uid);
+        }
+        return false;
     }
 }
