@@ -20,8 +20,7 @@ import com.ideafly.utils.TimeUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,32 +44,118 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         Page<Jobs> pageResult = this.lambdaQuery()
                 .orderByDesc(Jobs::getId)
                 .page(page);
+        List<Jobs> jobs = pageResult.getRecords();
         long dbQueryEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】数据库查询耗时: " + (dbQueryEnd - dbQueryStart) + "ms, 记录数: " + pageResult.getRecords().size());
+        System.out.println("【性能日志】数据库查询耗时: " + (dbQueryEnd - dbQueryStart) + "ms, 记录数: " + jobs.size());
         
-        // 2. 转换DTO (这是最耗时的部分，因为要查询用户、点赞、收藏等信息)
-        long dtoConvertStart = System.currentTimeMillis();
-        List<JobDetailOutputDto> list = pageResult.getRecords().stream().map(job -> {
-            long singleDtoStart = System.currentTimeMillis();
-            JobDetailOutputDto dto = this.convertDto(job);
-            long singleDtoEnd = System.currentTimeMillis();
+        if (jobs.isEmpty()) {
+            System.out.println("【性能日志】职位列表为空，直接返回");
+            return PageUtil.build(page, new ArrayList<>());
+        }
+        
+        // 2. 批量获取所有用户ID
+        long batchPrepStart = System.currentTimeMillis();
+        Set<Integer> userIds = jobs.stream()
+            .map(Jobs::getUserId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        
+        List<Integer> jobIds = jobs.stream()
+            .map(Jobs::getId)
+            .collect(Collectors.toList());
+        
+        // 3. 批量查询用户信息（一次查询替代N次）
+        final Map<Integer, Users> userMap;
+        if (!userIds.isEmpty()) {
+            long userBatchQueryStart = System.currentTimeMillis();
+            List<Users> users = usersService.listByIds(userIds);
+            userMap = users.stream()
+                .collect(Collectors.toMap(Users::getId, user -> user, (a, b) -> a));
+            long userBatchQueryEnd = System.currentTimeMillis();
+            System.out.println("【性能日志】批量用户查询耗时: " + (userBatchQueryEnd - userBatchQueryStart) + "ms, 用户数: " + users.size());
+        } else {
+            userMap = new HashMap<>();
+        }
+        
+        // 4. 获取当前用户
+        Integer currentUserId = UserContextHolder.getUid();
+        long batchPrepEnd = System.currentTimeMillis();
+        System.out.println("【性能日志】批量查询准备耗时: " + (batchPrepEnd - batchPrepStart) + "ms");
+        
+        // 5. 批量查询收藏和点赞状态
+        final Map<Integer, Boolean> favoriteMap = new HashMap<>();
+        final Map<Integer, Boolean> likeMap = new HashMap<>();
+        
+        if (currentUserId != null && !jobIds.isEmpty()) {
+            long statusBatchQueryStart = System.currentTimeMillis();
             
-            // 记录每个DTO转换的耗时
-            if (singleDtoEnd - singleDtoStart > 100) { // 只记录耗时较长的转换
-                System.out.println("【性能日志】单个职位转换耗时过长 - 职位ID: " + job.getId() + ", 耗时: " + (singleDtoEnd - singleDtoStart) + "ms");
+            // 批量查询收藏状态
+            try {
+                Map<Integer, Boolean> tempFavoriteMap = jobFavoriteService.batchGetFavoriteStatus(jobIds, currentUserId);
+                favoriteMap.putAll(tempFavoriteMap);
+                System.out.println("【性能日志】批量获取收藏状态成功，数量: " + favoriteMap.size());
+            } catch (Exception e) {
+                System.out.println("【性能日志】批量获取收藏状态异常: " + e.getMessage());
+                // 设置默认值
+                jobIds.forEach(jobId -> favoriteMap.put(jobId, false));
             }
+            
+            // 批量查询点赞状态
+            try {
+                Map<Integer, Boolean> tempLikeMap = jobLikesService.batchGetLikeStatus(jobIds, currentUserId);
+                likeMap.putAll(tempLikeMap);
+                System.out.println("【性能日志】批量获取点赞状态成功，数量: " + likeMap.size());
+            } catch (Exception e) {
+                System.out.println("【性能日志】批量获取点赞状态异常: " + e.getMessage());
+                // 设置默认值
+                jobIds.forEach(jobId -> likeMap.put(jobId, false));
+            }
+            
+            long statusBatchQueryEnd = System.currentTimeMillis();
+            System.out.println("【性能日志】批量状态查询耗时: " + (statusBatchQueryEnd - statusBatchQueryStart) + "ms");
+        } else {
+            // 用户未登录，所有职位设置默认值
+            System.out.println("【性能日志】用户未登录或职位列表为空，设置默认收藏和点赞状态");
+            jobIds.forEach(jobId -> {
+                favoriteMap.put(jobId, false);
+                likeMap.put(jobId, false);
+            });
+        }
+        
+        // 6. 转换DTO（使用批量查询结果）
+        long dtoConvertStart = System.currentTimeMillis();
+        List<JobDetailOutputDto> dtoList = jobs.stream().map(job -> {
+            JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
+            
+            // 设置职位基本信息
+            dto.setPostTitle(job.getPostTitle());
+            dto.setPostContent(job.getPostContent());
+            
+            // 设置用户信息（从Map获取，避免查询）
+            Users user = userMap.get(job.getUserId());
+            if (user != null) {
+                dto.setPublisherName(user.getUsername());
+                dto.setPublisherAvatar(user.getAvatar());
+            }
+            
+            // 设置发布时间
+            dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
+            
+            // 设置收藏和点赞状态（从Map获取，避免查询）
+            dto.setIsLike(likeMap.getOrDefault(job.getId(), false));
+            dto.setIsFavorite(favoriteMap.getOrDefault(job.getId(), false));
             
             return dto;
         }).collect(Collectors.toList());
         long dtoConvertEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】DTO转换总耗时: " + (dtoConvertEnd - dtoConvertStart) + "ms, 平均每条: " + 
-                (list.size() > 0 ? (dtoConvertEnd - dtoConvertStart) / list.size() : 0) + "ms");
+        System.out.println("【性能日志】DTO批量转换耗时: " + (dtoConvertEnd - dtoConvertStart) + "ms, 平均每条: " + 
+                (dtoList.size() > 0 ? (dtoConvertEnd - dtoConvertStart) / dtoList.size() : 0) + "ms");
         
-        // 3. 构建结果并返回
-        Page<JobDetailOutputDto> result = PageUtil.build(page, list);
+        // 7. 构建结果并返回
+        Page<JobDetailOutputDto> result = PageUtil.build(page, dtoList);
         
         long endTime = System.currentTimeMillis();
-        System.out.println("【性能日志】职位列表获取完成 - 总耗时: " + (endTime - startTime) + "ms");
+        System.out.println("【性能日志】职位列表获取完成 - 批量优化后总耗时: " + (endTime - startTime) + "ms");
         
         return result;
     }

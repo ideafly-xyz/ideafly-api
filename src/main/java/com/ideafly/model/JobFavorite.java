@@ -14,5 +14,6 @@ public class JobFavorite {
     private Integer id; // 收藏ID
     private Integer jobId; // 职位ID (关联 jobs 表)
     private Integer userId; // 收藏用户ID (关联用户表)
+    private Integer status; // 状态 (1: 有效, 0: 无效)
     private LocalDateTime createdAt; // 收藏时间
 }

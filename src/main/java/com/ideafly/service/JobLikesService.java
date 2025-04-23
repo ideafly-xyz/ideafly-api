@@ -13,6 +13,9 @@ import com.ideafly.model.Users;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -137,5 +140,45 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             return isJobLikedByUser(jobId, uid);
         }
         return false;
+    }
+    
+    // 添加批量查询点赞状态的方法
+    public Map<Integer, Boolean> batchGetLikeStatus(List<Integer> jobIds, Integer userId) {
+        long startTime = System.currentTimeMillis();
+        System.out.println("【性能日志】开始批量查询点赞状态 - 职位数量: " + jobIds.size());
+        
+        Map<Integer, Boolean> result = new HashMap<>();
+        
+        // 初始化默认状态为false
+        for (Integer jobId : jobIds) {
+            result.put(jobId, false);
+        }
+        
+        if (jobIds.isEmpty() || userId == null) {
+            return result;
+        }
+        
+        try {
+            // 批量查询所有已点赞的记录
+            List<JobLikes> likesList = this.lambdaQuery()
+                .in(JobLikes::getJobId, jobIds)
+                .eq(JobLikes::getUserId, userId)
+                .eq(JobLikes::getStatus, 1) // 只查询有效的点赞
+                .list();
+            
+            // 更新点赞状态
+            for (JobLikes like : likesList) {
+                result.put(like.getJobId(), true);
+            }
+            
+            long endTime = System.currentTimeMillis();
+            System.out.println("【性能日志】批量查询点赞状态完成 - 耗时: " + (endTime - startTime) + 
+                    "ms, 已点赞数量: " + likesList.size() + "/" + jobIds.size());
+            
+            return result;
+        } catch (Exception e) {
+            System.out.println("【性能日志】批量查询点赞状态异常: " + e.getMessage());
+            return result;
+        }
     }
 }
