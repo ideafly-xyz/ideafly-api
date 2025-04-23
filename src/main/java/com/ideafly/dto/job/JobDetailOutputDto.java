@@ -15,8 +15,6 @@ public class JobDetailOutputDto {
     private String postTitle;
     private String postContent;
     private String company; // 公司
-    private List<String> tags; // 标签
-    private List<String> skills; // 技能
     @Schema(description = "发布时间", name = "publish_time")
     private String publishTime;
     private LocalDateTime updatedAt;
