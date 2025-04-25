@@ -11,4 +11,7 @@ public class UserGetOutputDto {
     private String avatar;
     private String bio;
     private Integer totalLikes;
+    private Integer followersCount;
+    private Integer followingCount;
+    private Integer mutualFollowCount;
 } 

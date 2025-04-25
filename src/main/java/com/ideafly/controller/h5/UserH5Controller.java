@@ -4,8 +4,10 @@ import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.user.UpdateUserInputDto;
+import com.ideafly.dto.user.UserFollowStatsDto;
 import com.ideafly.dto.user.UserGetOutputDto;
 import com.ideafly.model.Users;
+import com.ideafly.service.UserFollowService;
 import com.ideafly.service.UsersService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,6 +25,9 @@ import java.util.Objects;
 public class UserH5Controller {
     @Resource
     private UsersService usersService;
+    
+    @Resource
+    private UserFollowService userFollowService;
 
     @GetMapping("get")
     @Operation(summary = "获取用户信息", description = "获取用户信息")
@@ -40,6 +45,20 @@ public class UserH5Controller {
         userGetOutputDto.setAvatar(user.getAvatar());
         userGetOutputDto.setBio(user.getBio());
         userGetOutputDto.setTotalLikes(user.getTotalLikes() != null ? user.getTotalLikes() : 0);
+        
+        // 添加关注统计信息
+        try {
+            UserFollowStatsDto followStats = userFollowService.getUserFollowStats(uid);
+            userGetOutputDto.setFollowersCount(followStats.getFollowersCount());
+            userGetOutputDto.setFollowingCount(followStats.getFollowingCount());
+            userGetOutputDto.setMutualFollowCount(followStats.getMutualFollowCount());
+        } catch (Exception e) {
+            // 如果获取关注统计失败，使用默认值0
+            userGetOutputDto.setFollowersCount(0);
+            userGetOutputDto.setFollowingCount(0);
+            userGetOutputDto.setMutualFollowCount(0);
+        }
+        
         return R.success(userGetOutputDto);
     }
 
@@ -87,6 +106,26 @@ public class UserH5Controller {
         profile.put("bio", user.getBio());
         profile.put("totalLikes", user.getTotalLikes() != null ? user.getTotalLikes() : 0);
         
+        // 添加关注统计信息
+        try {
+            UserFollowStatsDto followStats = userFollowService.getUserFollowStats(userId);
+            profile.put("followersCount", followStats.getFollowersCount());
+            profile.put("followingCount", followStats.getFollowingCount());
+            profile.put("mutualFollowCount", followStats.getMutualFollowCount());
+            
+            // 如果当前有登录用户，添加是否已关注该用户的信息
+            Integer currentUserId = UserContextHolder.getUid();
+            if (currentUserId != null && !currentUserId.equals(userId)) {
+                boolean isFollowing = userFollowService.isFollowing(userId);
+                profile.put("isFollowing", isFollowing);
+            }
+        } catch (Exception e) {
+            // 如果获取关注统计失败，使用默认值0
+            profile.put("followersCount", 0);
+            profile.put("followingCount", 0);
+            profile.put("mutualFollowCount", 0);
+        }
+        
         return R.success(profile);
     }
 
@@ -94,5 +133,25 @@ public class UserH5Controller {
     public R<Boolean> update(@RequestBody UpdateUserInputDto dto){
         usersService.updateUser(dto);
         return R.success(Boolean.TRUE);
+    }
+    
+    @GetMapping("followStats")
+    @Operation(summary = "获取用户关注统计信息", description = "获取当前登录用户或指定用户的关注统计信息")
+    public R<UserFollowStatsDto> getUserFollowStats(@RequestParam(value = "userId", required = false) Integer userId) {
+        try {
+            Integer targetUserId = userId;
+            // 如果未指定用户ID，则使用当前登录用户ID
+            if (targetUserId == null) {
+                targetUserId = UserContextHolder.getUid();
+                if (targetUserId == null) {
+                    return R.error("未登录且未指定用户ID");
+                }
+            }
+            
+            UserFollowStatsDto stats = userFollowService.getUserFollowStats(targetUserId);
+            return R.success(stats);
+        } catch (Exception e) {
+            return R.error("获取关注统计失败: " + e.getMessage());
+        }
     }
 }

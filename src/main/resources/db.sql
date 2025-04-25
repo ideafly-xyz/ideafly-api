@@ -83,5 +83,5 @@ CREATE TABLE `user_follows` (
     INDEX `idx_follower_id` (`follower_id`),
     INDEX `idx_followed_id` (`followed_id`),
     INDEX `idx_status` (`status`),
-    CONSTRAINT `chk_self_follow` CHECK (`follower_id` != `followed_id`) COMMENT '防止自己关注自己'
+    CONSTRAINT `chk_self_follow` CHECK (`follower_id` != `followed_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户关注关系表';
