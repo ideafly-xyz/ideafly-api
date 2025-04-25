@@ -18,10 +18,6 @@ public class Jobs {
     private String postTitle;
     private String postContent;
     
-    private Integer likes;
-    private Integer comments;
-    private Integer favorites;
-    private Integer shares;
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

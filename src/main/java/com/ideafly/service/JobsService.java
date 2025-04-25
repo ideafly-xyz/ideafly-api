@@ -33,6 +33,9 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
 
     @Resource
     private JobLikesService jobLikesService;
+    
+    @Resource
+    private JobCommentsService jobCommentsService;
 
     public Page<JobDetailOutputDto> getJobList(JobListInputDto request) {
         long startTime = System.currentTimeMillis();
@@ -86,6 +89,42 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         final Map<Integer, Boolean> favoriteMap = new HashMap<>();
         final Map<Integer, Boolean> likeMap = new HashMap<>();
         
+        // 5.1 批量查询点赞、收藏和评论数量
+        final Map<Integer, Integer> likesCountMap = new HashMap<>();
+        final Map<Integer, Integer> favoritesCountMap = new HashMap<>();
+        final Map<Integer, Integer> commentsCountMap = new HashMap<>();
+        
+        // 批量获取统计数据
+        if (!jobIds.isEmpty()) {
+            long countsQueryStart = System.currentTimeMillis();
+            
+            try {
+                // 批量查询点赞数
+                for (Integer jobId : jobIds) {
+                    int likesCount = jobLikesService.getJobLikesCount(jobId);
+                    likesCountMap.put(jobId, likesCount);
+                }
+                
+                // 批量查询收藏数
+                for (Integer jobId : jobIds) {
+                    int favoritesCount = jobFavoriteService.getJobFavoritesCount(jobId);
+                    favoritesCountMap.put(jobId, favoritesCount);
+                }
+                
+                // 批量查询评论数
+                for (Integer jobId : jobIds) {
+                    int commentsCount = jobCommentsService.getJobCommentsCount(jobId);
+                    commentsCountMap.put(jobId, commentsCount);
+                }
+            } catch (Exception e) {
+                System.out.println("【性能日志】批量获取统计数据异常: " + e.getMessage());
+                e.printStackTrace();
+            }
+            
+            long countsQueryEnd = System.currentTimeMillis();
+            System.out.println("【性能日志】批量统计数据查询耗时: " + (countsQueryEnd - countsQueryStart) + "ms");
+        }
+        
         if (currentUserId != null && !jobIds.isEmpty()) {
             long statusBatchQueryStart = System.currentTimeMillis();
             
@@ -130,6 +169,12 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             // 设置职位基本信息
             dto.setPostTitle(job.getPostTitle());
             dto.setPostContent(job.getPostContent());
+            
+            // 设置统计数据
+            dto.setLikes(likesCountMap.getOrDefault(job.getId(), 0));
+            dto.setFavorites(favoritesCountMap.getOrDefault(job.getId(), 0));
+            dto.setComments(commentsCountMap.getOrDefault(job.getId(), 0));
+            dto.setShares(0); // 暂时设置为0，如果有共享计数表，可以从那里获取
             
             // 设置用户信息（从Map获取，避免查询）
             Users user = userMap.get(job.getUserId());
@@ -184,7 +229,33 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
 
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
         
-        // 设置是否收藏和点赞状态 (这部分最可能耗时)
+        // 设置统计数据 (从各自的Service动态获取)
+        long statsQueryStart = System.currentTimeMillis();
+        try {
+            int likesCount = jobLikesService.getJobLikesCount(job.getId());
+            int favoritesCount = jobFavoriteService.getJobFavoritesCount(job.getId());
+            int commentsCount = jobCommentsService.getJobCommentsCount(job.getId());
+            
+            dto.setLikes(likesCount);
+            dto.setFavorites(favoritesCount);
+            dto.setComments(commentsCount);
+            dto.setShares(0); // 暂时设置为0，如果有共享计数表，可以从那里获取
+        } catch (Exception e) {
+            System.out.println("获取统计数据失败: " + e.getMessage());
+            e.printStackTrace();
+            // 设置默认值
+            dto.setLikes(0);
+            dto.setFavorites(0);
+            dto.setComments(0);
+            dto.setShares(0);
+        }
+        long statsQueryEnd = System.currentTimeMillis();
+        
+        if (statsQueryEnd - statsQueryStart > 50) {
+            System.out.println("【性能日志】统计数据查询耗时较长 - 职位ID: " + job.getId() + ", 耗时: " + (statsQueryEnd - statsQueryStart) + "ms");
+        }
+        
+        // 设置是否收藏和点赞状态
         long statusQueryStart = System.currentTimeMillis();
         try {
             // 获取当前用户ID
@@ -248,15 +319,5 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         job.setUserId(UserContextHolder.getUid());
         this.save(job);
         return job;
-    }
-
-    public void likes(Integer id, boolean isLike) {
-        this.lambdaUpdate().setSql("likes = likes + " + (isLike ? 1 : -1)).eq(Jobs::getId, id).update();
-    }
-    public void comments(Integer id, boolean isComment) {
-        this.lambdaUpdate().setSql("comments = comments + " + (isComment ? 1 : -1)).eq(Jobs::getId, id).update();
-    }
-    public void favorites(Integer id, boolean isFavorite) {
-        this.lambdaUpdate().setSql("favorites = favorites + " + (isFavorite ? 1 : -1)).eq(Jobs::getId, id).update();
     }
 }

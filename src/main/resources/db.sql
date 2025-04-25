@@ -32,10 +32,6 @@ CREATE TABLE `jobs` (
                         `user_id` INT UNSIGNED COMMENT '发布者用户ID (关联用户表)',
                         `post_title` VARCHAR(100) NOT NULL COMMENT '作品标题',
                         `post_content` TEXT NOT NULL COMMENT '作品内容',
-                        `likes` INT UNSIGNED DEFAULT 0 COMMENT '点赞数',
-                        `comments` INT UNSIGNED DEFAULT 0 COMMENT '评论数',
-                        `favorites` INT UNSIGNED DEFAULT 0 COMMENT '收藏数',
-                        `shares` INT UNSIGNED DEFAULT 0 COMMENT '分享数',
                         `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                         `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                         INDEX `idx_user_id` (`user_id`)

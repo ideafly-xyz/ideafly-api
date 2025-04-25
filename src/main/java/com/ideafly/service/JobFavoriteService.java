@@ -40,12 +40,10 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 jobFavorite.setJobId(dto.getJobId());
                 jobFavorite.setStatus(1); // 有效状态
                 this.save(jobFavorite);
-                jobsService.favorites(dto.getJobId(), true);
             } else if (favorite.getStatus() == 0) {
                 // 有记录但已取消，更新状态
                 favorite.setStatus(1);
                 this.updateById(favorite);
-                jobsService.favorites(dto.getJobId(), true);
             }
             // 已经收藏的不做处理
         } else {
@@ -54,7 +52,6 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 // 更新状态为取消
                 favorite.setStatus(0);
                 this.updateById(favorite);
-                jobsService.favorites(dto.getJobId(), false);
             }
             // 不存在或已取消的不做处理
         }

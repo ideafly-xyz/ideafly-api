@@ -67,7 +67,6 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
                 jobLike.setJobId(dto.getJobId());
                 jobLike.setStatus(1); // 有效状态
                 this.save(jobLike);
-                jobsService.likes(dto.getJobId(), true);
                 
                 // 更新作者总点赞数
                 author.setTotalLikes(author.getTotalLikes() + 1);
@@ -77,7 +76,6 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
                 // 有记录但已取消，更新状态
                 like.setStatus(1);
                 this.updateById(like);
-                jobsService.likes(dto.getJobId(), true);
                 
                 // 更新作者总点赞数
                 author.setTotalLikes(author.getTotalLikes() + 1);
@@ -91,7 +89,6 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
                 // 更新状态为取消
                 like.setStatus(0);
                 this.updateById(like);
-                jobsService.likes(dto.getJobId(), false);
                 
                 // 更新作者总点赞数
                 if (author.getTotalLikes() > 0) {

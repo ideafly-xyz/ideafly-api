@@ -24,19 +24,21 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         JobComments jobComments = BeanUtil.copyProperties(dto, JobComments.class);
         jobComments.setUserId(UserContextHolder.getUid());
         this.save(jobComments);
-        jobsService.comments(jobComments.getJobId(), true);
     }
 
     public void deleteComment(Long id) {
         JobComments jobComment = getById(id);
         if (Objects.nonNull(jobComment)) {
             this.removeById(id);
-            jobsService.comments(jobComment.getJobId(), false);
         }
     }
 
     public int getJobCommentCount(Integer jobId) {
         return this.lambdaQuery().eq(JobComments::getJobId, jobId).count().intValue();
+    }
+
+    public int getJobCommentsCount(Integer jobId) {
+        return getJobCommentCount(jobId);
     }
 
     public List<JobComments> getCommentTreeByJobId(Integer jobId) {
