@@ -65,14 +65,40 @@ public class GlobalExceptionHandler {
     
     @ResponseBody
     @ExceptionHandler({HttpMessageNotReadableException.class})
-    public R<?> jsonFormatExceptionHandler(Exception e) {
+    public R<?> jsonFormatExceptionHandler(HttpMessageNotReadableException e) {
         String url = getCurrentRequestUrl();
         boolean isCommonError = isCommonErrorPath(url);
         
+        // 增强日志，记录更多异常信息
+        String errorMessage = e.getMessage();
+        Throwable rootCause = e.getRootCause();
+        String rootCauseMessage = rootCause != null ? rootCause.getMessage() : "无根本原因";
+        
+        // 如果是 /user/follow/toggle 接口，则记录详细信息，帮助调试
+        if (url.contains("/user/follow/toggle")) {
+            log.error("关注接口参数JSON解析错误: URL={}, 异常消息={}, 根本原因={}", url, errorMessage, rootCauseMessage, e);
+            
+            try {
+                // 尝试记录请求体内容
+                RequestAttributes request = RequestContextHolder.getRequestAttributes();
+                if (request != null) {
+                    ServletRequestAttributes servletRequest = (ServletRequestAttributes) request;
+                    String contentType = servletRequest.getRequest().getContentType();
+                    String method = servletRequest.getRequest().getMethod();
+                    log.error("关注接口请求详情: Method={}, ContentType={}", method, contentType);
+                }
+            } catch (Exception ex) {
+                log.error("尝试记录请求详情时出错", ex);
+            }
+            
+            return R.error(ErrorCode.PARAM_ERROR.getCode(), "关注用户参数格式错误: " + rootCauseMessage);
+        }
+        
+        // 原来的日志处理逻辑
         if (isCommonError) {
             log.warn("参数JSON格式错误, URL: {}", url);
         } else {
-            log.error("参数JSON格式错误, URL: {}", url, e);
+            log.error("参数JSON格式错误, URL: {}, 异常: {}, 根本原因: {}", url, errorMessage, rootCauseMessage, e);
         }
         return R.error(ErrorCode.PARAM_ERROR.getCode(), "参数JSON格式错误");
     }

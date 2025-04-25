@@ -11,6 +11,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import javax.servlet.http.HttpServletRequest;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -24,6 +28,7 @@ import java.util.Map;
 @Tag(name = "用户关注相关接口", description = "包含关注/取消关注、获取关注统计等功能")
 @RestController
 @RequestMapping("/api/user/follow")
+@Slf4j
 public class UserFollowController {
 
     @Resource
@@ -32,12 +37,44 @@ public class UserFollowController {
     @PostMapping("toggle")
     @Operation(summary = "关注或取消关注用户", description = "切换对指定用户的关注状态")
     public R<UserFollowStatusDto> toggleFollow(@RequestBody UserFollowInputDto dto) {
+        log.info("=== 关注/取消关注请求开始 ===");
+        log.info("接收到的参数: {}", dto);
+        
+        if (dto == null) {
+            log.error("接收到空对象");
+        } else {
+            log.info("followedId: {}", dto.getFollowedId());
+        }
+        
+        // 打印请求相关详细信息，帮助调试
+        try {
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+            log.info("Content-Type: {}", request.getContentType());
+            log.info("Character Encoding: {}", request.getCharacterEncoding());
+            log.info("Content Length: {}", request.getContentLength());
+            log.info("HTTP Method: {}", request.getMethod());
+            
+            // 打印头部信息
+            java.util.Enumeration<String> headerNames = request.getHeaderNames();
+            while (headerNames.hasMoreElements()) {
+                String headerName = headerNames.nextElement();
+                log.info("Header: {} = {}", headerName, request.getHeader(headerName));
+            }
+        } catch (Exception e) {
+            log.error("获取请求信息异常: {}", e.getMessage());
+        }
+        
+        log.info("当前用户ID: {}", UserContextHolder.getUid());
+        
         try {
             UserFollowStatusDto result = userFollowService.toggleFollow(dto);
+            log.info("关注/取消关注执行结果: {}", result);
             return R.success(result);
         } catch (IllegalArgumentException e) {
+            log.error("关注/取消关注参数错误: {}", e.getMessage());
             return R.error(e.getMessage());
         } catch (Exception e) {
+            log.error("关注/取消关注异常: {}", e.getMessage(), e);
             return R.error("操作失败: " + e.getMessage());
         }
     }

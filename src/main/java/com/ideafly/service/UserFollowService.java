@@ -10,6 +10,7 @@ import com.ideafly.mapper.UserFollowMapper;
 import com.ideafly.model.UserFollow;
 import com.ideafly.model.Users;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
  * 用户关注服务
  */
 @Service
+@Slf4j
 public class UserFollowService extends ServiceImpl<UserFollowMapper, UserFollow> {
 
     @Resource
@@ -31,17 +33,34 @@ public class UserFollowService extends ServiceImpl<UserFollowMapper, UserFollow>
      * 添加或取消关注
      */
     public UserFollowStatusDto toggleFollow(UserFollowInputDto dto) {
+        log.info("Service层 - 开始处理关注/取消关注请求");
+        log.info("Service层 - 输入DTO: {}", dto);
+        
+        if (dto == null) {
+            log.error("Service层 - 接收到null DTO对象");
+            throw new IllegalArgumentException("未提供关注参数");
+        }
+        
         Integer followerId = UserContextHolder.getUid();
         Integer followedId = dto.getFollowedId();
         
+        log.info("Service层 - 关注者ID: {}, 被关注者ID: {}", followerId, followedId);
+        
+        if (followedId == null) {
+            log.error("Service层 - 被关注者ID为null");
+            throw new IllegalArgumentException("被关注者ID不能为空");
+        }
+        
         // 不允许关注自己
         if (Objects.equals(followerId, followedId)) {
+            log.warn("Service层 - 用户尝试关注自己: {}", followerId);
             throw new IllegalArgumentException("不能关注自己");
         }
         
         // 检查被关注的用户是否存在
         Users followedUser = usersService.getById(followedId);
         if (followedUser == null) {
+            log.error("Service层 - 被关注的用户不存在, ID: {}", followedId);
             throw new IllegalArgumentException("被关注的用户不存在");
         }
         
@@ -51,6 +70,8 @@ public class UserFollowService extends ServiceImpl<UserFollowMapper, UserFollow>
                 .eq(UserFollow::getFollowedId, followedId)
                 .one();
         
+        log.info("Service层 - 现有关注记录: {}", userFollow);
+        
         // 构建返回对象
         UserFollowStatusDto result = new UserFollowStatusDto();
         result.setFollowerId(followerId);
@@ -58,6 +79,7 @@ public class UserFollowService extends ServiceImpl<UserFollowMapper, UserFollow>
         
         // 如果记录不存在，创建新的关注关系
         if (userFollow == null) {
+            log.info("Service层 - 创建新关注关系");
             userFollow = new UserFollow();
             userFollow.setFollowerId(followerId);
             userFollow.setFollowedId(followedId);
@@ -68,11 +90,13 @@ public class UserFollowService extends ServiceImpl<UserFollowMapper, UserFollow>
         } else {
             // 如果记录存在，切换关注状态
             int newStatus = userFollow.getStatus() == 1 ? 0 : 1;
+            log.info("Service层 - 更新关注状态: {} -> {}", userFollow.getStatus(), newStatus);
             userFollow.setStatus(newStatus);
             this.updateById(userFollow);
             result.setFollowing(newStatus == 1);
         }
         
+        log.info("Service层 - 关注/取消关注处理完成, 结果: {}", result);
         return result;
     }
     
