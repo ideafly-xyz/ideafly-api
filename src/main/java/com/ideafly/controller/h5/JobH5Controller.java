@@ -77,4 +77,10 @@ public class JobH5Controller {
     public R<List<JobComments>> getComment(@RequestParam(name = "job_id") Integer jobId) { //  使用 @Valid 注解开启参数校验
         return R.success(jobCommentsService.getCommentTreeByJobId(jobId));
     }
+    
+    @NoAuth
+    @GetMapping("commentsCount")
+    public R<Integer> getCommentsCount(@RequestParam(name = "job_id") Integer jobId) {
+        return R.success(jobCommentsService.getJobCommentsCount(jobId));
+    }
 }

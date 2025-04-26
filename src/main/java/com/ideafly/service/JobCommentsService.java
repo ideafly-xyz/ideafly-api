@@ -23,6 +23,12 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
     public void addComment(JobCommentInputDto dto) {
         JobComments jobComments = BeanUtil.copyProperties(dto, JobComments.class);
         jobComments.setUserId(UserContextHolder.getUid());
+        
+        // 如果 parentCommentId 为 null，设置默认值为 0
+        if (jobComments.getParentCommentId() == null) {
+            jobComments.setParentCommentId(0);
+        }
+        
         this.save(jobComments);
     }
 
