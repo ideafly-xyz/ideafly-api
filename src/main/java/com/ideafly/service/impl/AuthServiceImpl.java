@@ -185,6 +185,10 @@ public class AuthServiceImpl implements AuthService {
         userInfo.put("telegram_username", user.getTelegramUsername());
         userInfo.put("status", user.getStatus());
         userInfo.put("role", user.getRole());
+        // 添加用户资料字段
+        userInfo.put("gender", user.getGender());
+        userInfo.put("location", user.getLocation());
+        userInfo.put("personal_bio", user.getBio()); // 前端使用personal_bio
         // 添加日期格式化
         userInfo.put("created_at", user.getCreatedAt() != null ? 
                      user.getCreatedAt().toString() : null);

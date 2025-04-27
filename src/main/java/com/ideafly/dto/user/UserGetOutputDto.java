@@ -9,7 +9,9 @@ public class UserGetOutputDto {
     private String email;
     private String mobile;
     private String avatar;
-    private String bio;
+    private String personalBio;
+    private String location;
+    private Integer gender;
     private Integer totalLikes;
     private Integer followersCount;
     private Integer followingCount;

@@ -43,7 +43,9 @@ public class UserH5Controller {
         userGetOutputDto.setEmail(user.getEmail());
         userGetOutputDto.setMobile(user.getMobile());
         userGetOutputDto.setAvatar(user.getAvatar());
-        userGetOutputDto.setBio(user.getBio());
+        userGetOutputDto.setPersonalBio(user.getBio());
+        userGetOutputDto.setLocation(user.getLocation());
+        userGetOutputDto.setGender(user.getGender());
         userGetOutputDto.setTotalLikes(user.getTotalLikes() != null ? user.getTotalLikes() : 0);
         
         // 添加关注统计信息

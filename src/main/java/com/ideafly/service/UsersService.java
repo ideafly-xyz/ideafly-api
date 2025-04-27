@@ -23,6 +23,10 @@ public class UsersService extends ServiceImpl<UsersMapper, Users> {
 
     public void updateUser(UpdateUserInputDto userDto) {
         Users users = BeanUtil.copyProperties(userDto, Users.class);
+        // 处理特殊字段映射：personalBio -> bio
+        if (userDto.getPersonalBio() != null) {
+            users.setBio(userDto.getPersonalBio());
+        }
         users.setId(UserContextHolder.getUid());
         this.updateById(users);
     }
