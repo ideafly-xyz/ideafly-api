@@ -133,6 +133,8 @@ public class UserH5Controller {
 
     @PostMapping("/update")
     public R<Boolean> update(@RequestBody UpdateUserInputDto dto){
+        System.out.println("【控制器调试日志】接收到的UpdateUserInputDto: " + dto);
+        System.out.println("【控制器调试日志】个人简介personalBio值: " + dto.getPersonalBio());
         usersService.updateUser(dto);
         return R.success(Boolean.TRUE);
     }
