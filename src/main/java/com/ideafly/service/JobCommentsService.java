@@ -54,11 +54,29 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         }
         List<JobComments> rootComments = new ArrayList<>();
         Map<Integer, JobComments> commentMap = allComments.stream().collect(Collectors.toMap(JobComments::getId, comment -> comment));
+        
+        // 获取所有评论作者的用户ID
         Set<Integer> uIds = allComments.stream().map(JobComments::getUserId).collect(Collectors.toSet());
-        Map<Integer, Users> usersMap = usersService.lambdaQuery().in(Users::getId, uIds).list().stream().collect(Collectors.toMap(Users::getId, user -> user));
+        
+        // 获取用户信息
+        Map<Integer, Users> usersMap = new HashMap<>();
+        if (!uIds.isEmpty()) {
+            usersMap = usersService.lambdaQuery().in(Users::getId, uIds).list().stream()
+                .collect(Collectors.toMap(Users::getId, user -> user));
+        }
+        
         for (JobComments comment : allComments) {
-            comment.setUserName(usersMap.get(comment.getUserId()).getUsername());
-            comment.setUserAvatar(usersMap.get(comment.getUserId()).getAvatar());
+            // 安全获取用户名和头像
+            Users user = usersMap.get(comment.getUserId());
+            if (user != null) {
+                comment.setUserName(user.getUsername());
+                comment.setUserAvatar(user.getAvatar());
+            } else {
+                // 如果找不到用户（可能被删除），设置默认值
+                comment.setUserName("未知用户");
+                comment.setUserAvatar("");
+            }
+            
             Integer parentId = comment.getParentCommentId();
             if (parentId == null || parentId == 0) {
                 rootComments.add(comment);
