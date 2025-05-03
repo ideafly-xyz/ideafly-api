@@ -35,11 +35,22 @@ public class JobH5Controller {
     private JobFavoriteService jobFavoriteService;
     @Resource
     private JobCommentsService jobCommentsService;
+    
     @NoAuth
     @PostMapping("list")
     public R<Page<JobDetailOutputDto>> getJobList(@RequestBody JobListInputDto request) {
         return R.success(jobService.getJobList(request));
     }
+    
+    /**
+     * 获取用户收藏的职位列表
+     */
+    @PostMapping("favorites")
+    @Operation(summary = "获取收藏职位", description = "获取当前用户收藏的所有职位")
+    public R<Page<JobDetailOutputDto>> getFavoriteJobs(@RequestBody JobListInputDto request) {
+        return R.success(jobFavoriteService.getUserFavoriteJobs(request));
+    }
+    
     /**
      * 发布职位接口
      */
