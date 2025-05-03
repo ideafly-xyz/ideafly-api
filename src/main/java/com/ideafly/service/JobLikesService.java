@@ -77,8 +77,12 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         long jobsQueryStart = System.currentTimeMillis();
         List<Jobs> likedJobs = jobsService.lambdaQuery()
             .in(Jobs::getId, likedJobIds)
-            .orderByDesc(Jobs::getId) // 按ID降序，最新点赞的在前面
             .list();
+            
+        if (likedJobs.isEmpty()) {
+            System.out.println("【性能日志】没有找到有效的职位信息，返回空列表");
+            return PageUtil.build(page, new ArrayList<>());
+        }
             
         // 维护ID到索引的映射，以保持点赞顺序
         Map<Integer, Integer> jobIdToIndexMap = new HashMap<>();
@@ -96,20 +100,115 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         long jobsQueryEnd = System.currentTimeMillis();
         System.out.println("【性能日志】批量查询点赞职位详情耗时: " + (jobsQueryEnd - jobsQueryStart) + "ms, 职位数量: " + likedJobs.size());
         
-        // 3. 转换为DTO并添加isLike标记
+        // 3. 批量获取所需的数据，避免单个查询
+        
+        // 3.1 收集所有需要的用户ID
+        List<Integer> userIds = likedJobs.stream()
+            .map(Jobs::getUserId)
+            .distinct()
+            .collect(Collectors.toList());
+            
+        // 3.2 批量查询用户信息
+        long userQueryStart = System.currentTimeMillis();
+        List<Users> users = new ArrayList<>();
+        if (!userIds.isEmpty()) {
+            users = jobsService.getUsersService().lambdaQuery()
+                .in(Users::getId, userIds)
+                .list();
+        }
+        
+        // 用户ID到用户对象的映射
+        Map<Integer, Users> userMap = users.stream()
+            .collect(Collectors.toMap(Users::getId, user -> user, (u1, u2) -> u1));
+            
+        long userQueryEnd = System.currentTimeMillis();
+        System.out.println("【性能日志】批量查询用户信息耗时: " + (userQueryEnd - userQueryStart) + "ms, 用户数量: " + users.size());
+        
+        // 3.3 批量查询统计数据
+        long statsQueryStart = System.currentTimeMillis();
+        
+        // 所有职位ID列表
+        List<Integer> jobIds = likedJobs.stream()
+            .map(Jobs::getId)
+            .collect(Collectors.toList());
+            
+        // 获取评论计数
+        Map<Integer, Integer> commentsCountMap = new HashMap<>();
+        try {
+            // 逐个获取评论数
+            for (Integer jobId : jobIds) {
+                int commentsCount = jobsService.getJobCommentsService().getJobCommentsCount(jobId);
+                commentsCountMap.put(jobId, commentsCount);
+            }
+        } catch (Exception e) {
+            System.out.println("批量获取评论数失败: " + e.getMessage());
+            // 设置默认值
+            jobIds.forEach(id -> commentsCountMap.put(id, 0));
+        }
+        
+        // 获取收藏计数
+        Map<Integer, Integer> favoritesCountMap = new HashMap<>();
+        try {
+            // 逐个获取收藏数
+            for (Integer jobId : jobIds) {
+                int favoritesCount = jobsService.getJobFavoriteService().getJobFavoritesCount(jobId);
+                favoritesCountMap.put(jobId, favoritesCount);
+            }
+        } catch (Exception e) {
+            System.out.println("批量获取收藏数失败: " + e.getMessage());
+            // 设置默认值
+            jobIds.forEach(id -> favoritesCountMap.put(id, 0));
+        }
+        
+        // 获取点赞计数（可以直接构建，因为我们知道这些都是被点赞的）
+        Map<Integer, Integer> likesCountMap = new HashMap<>();
+        for (Integer jobId : jobIds) {
+            likesCountMap.put(jobId, 1); // 至少被当前用户点赞过
+        }
+        
+        long statsQueryEnd = System.currentTimeMillis();
+        System.out.println("【性能日志】批量查询统计数据耗时: " + (statsQueryEnd - statsQueryStart) + "ms");
+        
+        // 3.4 批量查询点赞和收藏状态
+        // 由于这是点赞列表，我们已经知道所有职位都是被点赞的
+        final Map<Integer, Boolean> likeMap = new HashMap<>();
+        for (Integer jobId : jobIds) {
+            likeMap.put(jobId, true);
+        }
+        
+        // 批量查询收藏状态
+        final Map<Integer, Boolean> favoriteMap = new HashMap<>();
+        try {
+            Map<Integer, Boolean> tempFavoriteMap = jobsService.getJobFavoriteService().batchGetFavoriteStatus(jobIds, userId);
+            favoriteMap.putAll(tempFavoriteMap);
+        } catch (Exception e) {
+            System.out.println("批量获取收藏状态失败: " + e.getMessage());
+            // 设置默认值
+            jobIds.forEach(id -> favoriteMap.put(id, false));
+        }
+        
+        // 4. 批量转换为DTO
         long dtoConvertStart = System.currentTimeMillis();
         List<JobDetailOutputDto> result = new ArrayList<>();
         
         for (Jobs job : likedJobs) {
-            JobDetailOutputDto dto = jobsService.convertDto(job);
-            dto.setIsLike(true); // 设置为已点赞
+            // 使用优化的批量转换方法
+            JobDetailOutputDto dto = jobsService.convertDto(
+                job, 
+                userMap, 
+                likesCountMap, 
+                favoritesCountMap, 
+                commentsCountMap, 
+                favoriteMap, 
+                likeMap
+            );
             result.add(dto);
         }
         
         long dtoConvertEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】DTO转换耗时: " + (dtoConvertEnd - dtoConvertStart) + "ms");
+        System.out.println("【性能日志】优化后的DTO批量转换耗时: " + (dtoConvertEnd - dtoConvertStart) + "ms");
         
-        // 4. 构建分页结果
+        // 5. 构建分页结果
         long endTime = System.currentTimeMillis();
         System.out.println("【性能日志】获取用户点赞职位完成 - 总耗时: " + (endTime - startTime) + "ms");
         

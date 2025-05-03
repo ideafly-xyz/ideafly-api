@@ -311,6 +311,45 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         return dto;
     }
 
+    // 新增重载方法，支持批量转换多个职位，减少重复查询
+    public JobDetailOutputDto convertDto(
+            Jobs job,
+            Map<Integer, Users> userMap,
+            Map<Integer, Integer> likesCountMap,
+            Map<Integer, Integer> favoritesCountMap, 
+            Map<Integer, Integer> commentsCountMap,
+            Map<Integer, Boolean> favoriteMap,
+            Map<Integer, Boolean> likeMap) {
+        
+        JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
+        
+        // 设置职位基本信息
+        dto.setPostTitle(job.getPostTitle());
+        dto.setPostContent(job.getPostContent());
+        
+        // 设置用户信息（从Map获取，避免查询）
+        Users user = userMap.get(job.getUserId());
+        if (user != null) {
+            dto.setPublisherName(user.getUsername());
+            dto.setPublisherAvatar(user.getAvatar());
+        }
+        
+        // 设置发布时间
+        dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
+        
+        // 设置统计数据
+        dto.setLikes(likesCountMap.getOrDefault(job.getId(), 0));
+        dto.setFavorites(favoritesCountMap.getOrDefault(job.getId(), 0));
+        dto.setComments(commentsCountMap.getOrDefault(job.getId(), 0));
+        dto.setShares(0); // 暂时设置为0，如果有共享计数表，可以从那里获取
+        
+        // 设置收藏和点赞状态
+        dto.setIsLike(likeMap.getOrDefault(job.getId(), false));
+        dto.setIsFavorite(favoriteMap.getOrDefault(job.getId(), false));
+        
+        return dto;
+    }
+
     public Jobs createJob(CreateJobInputDto request) {
         Jobs job = new Jobs();
         // 只设置标题和内容字段
@@ -319,5 +358,22 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         job.setUserId(UserContextHolder.getUid());
         this.save(job);
         return job;
+    }
+    
+    // 添加服务的getter方法
+    public UsersService getUsersService() {
+        return usersService;
+    }
+    
+    public JobFavoriteService getJobFavoriteService() {
+        return jobFavoriteService;
+    }
+    
+    public JobLikesService getJobLikesService() {
+        return jobLikesService;
+    }
+    
+    public JobCommentsService getJobCommentsService() {
+        return jobCommentsService;
     }
 }
