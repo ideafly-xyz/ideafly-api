@@ -120,6 +120,27 @@ public class UserFollowService extends ServiceImpl<UserFollowMapper, UserFollow>
     }
     
     /**
+     * 获取当前用户关注的用户ID列表
+     * @param userId 用户ID
+     * @return 关注的用户ID列表
+     */
+    public List<Integer> getFollowingUserIds(Integer userId) {
+        if (userId == null) {
+            return new ArrayList<>();
+        }
+        
+        // 查询当前用户关注的所有用户ID (只查询激活状态的关注)
+        return this.lambdaQuery()
+                .select(UserFollow::getFollowedId)
+                .eq(UserFollow::getFollowerId, userId)
+                .eq(UserFollow::getStatus, 1) // 只查询激活状态的关注
+                .list()
+                .stream()
+                .map(UserFollow::getFollowedId)
+                .collect(Collectors.toList());
+    }
+    
+    /**
      * 获取用户的关注统计信息
      */
     public UserFollowStatsDto getUserFollowStats(Integer userId) {

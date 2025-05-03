@@ -36,6 +36,9 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     
     @Resource
     private JobCommentsService jobCommentsService;
+    
+    @Resource
+    private UserFollowService userFollowService;
 
     public Page<JobDetailOutputDto> getJobList(JobListInputDto request) {
         long startTime = System.currentTimeMillis();
@@ -375,5 +378,129 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     
     public JobCommentsService getJobCommentsService() {
         return jobCommentsService;
+    }
+
+    /**
+     * 获取关注用户发布的帖子
+     * @param request 分页请求参数
+     * @return 关注用户的帖子列表（分页）
+     */
+    public Page<JobDetailOutputDto> getFollowingUserJobs(JobListInputDto request) {
+        System.out.println("【性能日志】开始获取关注用户帖子 - 页码:" + request.getPageNum() + ", 页大小:" + request.getPageSize());
+        long startTime = System.currentTimeMillis();
+        
+        // 获取当前用户ID
+        Integer currentUserId = UserContextHolder.getUid();
+        if (currentUserId == null) {
+            System.out.println("【性能日志】用户未登录，无法获取关注用户帖子");
+            throw new IllegalArgumentException("用户未登录");
+        }
+        
+        // 创建分页对象
+        Page<Jobs> page = PageUtil.build(request);
+        
+        try {
+            // 获取当前用户关注的用户ID列表
+            List<Integer> followingUserIds = userFollowService.getFollowingUserIds(currentUserId);
+            
+            // 如果没有关注任何用户，返回空结果
+            if (CollUtil.isEmpty(followingUserIds)) {
+                System.out.println("【性能日志】用户未关注任何人，返回空结果");
+                return PageUtil.empty(page);
+            }
+            
+            System.out.println("【性能日志】用户关注了 " + followingUserIds.size() + " 个用户");
+            
+            // 查询关注用户发布的帖子
+            Page<Jobs> jobsPage = this.lambdaQuery()
+                    .in(Jobs::getUserId, followingUserIds)
+                    .orderByDesc(Jobs::getCreatedAt)
+                    .page(page);
+            
+            List<Jobs> jobs = jobsPage.getRecords();
+            System.out.println("【性能日志】查询到 " + jobs.size() + " 条关注用户的帖子");
+            
+            if (jobs.isEmpty()) {
+                return PageUtil.empty(page);
+            }
+            
+            // 批量获取所有用户ID
+            Set<Integer> userIds = jobs.stream()
+                .map(Jobs::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+            
+            List<Integer> jobIds = jobs.stream()
+                .map(Jobs::getId)
+                .collect(Collectors.toList());
+            
+            // 批量查询用户信息
+            final Map<Integer, Users> userMap;
+            if (!userIds.isEmpty()) {
+                List<Users> users = usersService.listByIds(userIds);
+                userMap = users.stream()
+                    .collect(Collectors.toMap(Users::getId, user -> user, (a, b) -> a));
+            } else {
+                userMap = new HashMap<>();
+            }
+            
+            // 批量查询统计数据
+            final Map<Integer, Integer> likesCountMap = new HashMap<>();
+            final Map<Integer, Integer> favoritesCountMap = new HashMap<>();
+            final Map<Integer, Integer> commentsCountMap = new HashMap<>();
+            final Map<Integer, Boolean> favoriteMap = new HashMap<>();
+            final Map<Integer, Boolean> likeMap = new HashMap<>();
+            
+            if (!jobIds.isEmpty()) {
+                // 批量查询点赞数
+                for (Integer jobId : jobIds) {
+                    likesCountMap.put(jobId, jobLikesService.getJobLikesCount(jobId));
+                }
+                
+                // 批量查询收藏数
+                for (Integer jobId : jobIds) {
+                    favoritesCountMap.put(jobId, jobFavoriteService.getJobFavoritesCount(jobId));
+                }
+                
+                // 批量查询评论数
+                for (Integer jobId : jobIds) {
+                    commentsCountMap.put(jobId, jobCommentsService.getJobCommentsCount(jobId));
+                }
+                
+                // 批量查询收藏状态
+                Map<Integer, Boolean> tempFavoriteMap = jobFavoriteService.batchGetFavoriteStatus(jobIds, currentUserId);
+                favoriteMap.putAll(tempFavoriteMap);
+                
+                // 批量查询点赞状态
+                Map<Integer, Boolean> tempLikeMap = jobLikesService.batchGetLikeStatus(jobIds, currentUserId);
+                likeMap.putAll(tempLikeMap);
+            }
+            
+            // 转换为DTO
+            List<JobDetailOutputDto> dtoList = jobs.stream()
+                .map(job -> convertDto(
+                    job, 
+                    userMap, 
+                    likesCountMap, 
+                    favoritesCountMap, 
+                    commentsCountMap, 
+                    favoriteMap, 
+                    likeMap
+                ))
+                .collect(Collectors.toList());
+            
+            // 构建分页结果
+            Page<JobDetailOutputDto> result = PageUtil.build(jobsPage, dtoList);
+            
+            long endTime = System.currentTimeMillis();
+            System.out.println("【性能日志】获取关注用户帖子完成 - 耗时:" + (endTime - startTime) + "ms, 记录数:" + dtoList.size());
+            
+            return result;
+            
+        } catch (Exception e) {
+            System.out.println("【性能日志】获取关注用户帖子异常: " + e.getMessage());
+            e.printStackTrace();
+            throw new IllegalArgumentException("获取关注用户帖子失败: " + e.getMessage());
+        }
     }
 }

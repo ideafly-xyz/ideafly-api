@@ -61,6 +61,24 @@ public class JobH5Controller {
     }
     
     /**
+     * 获取关注用户发布的帖子列表
+     */
+    @GetMapping("following")
+    @Operation(summary = "获取关注用户帖子", description = "获取当前用户关注的人发布的帖子")
+    public R<Page<JobDetailOutputDto>> getFollowingUserJobs(
+            @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum,
+            @RequestParam(value = "pageSize", defaultValue = "20") Integer pageSize) {
+        
+        // 创建请求DTO
+        JobListInputDto request = new JobListInputDto();
+        request.setPageNum(pageNum);
+        request.setPageSize(pageSize);
+        
+        // 调用新的服务方法获取关注用户的帖子
+        return R.success(jobService.getFollowingUserJobs(request));
+    }
+    
+    /**
      * 发布职位接口
      */
     @PostMapping("createJob")
