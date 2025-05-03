@@ -52,6 +52,15 @@ public class JobH5Controller {
     }
     
     /**
+     * 获取用户点赞的职位列表
+     */
+    @PostMapping("likes")
+    @Operation(summary = "获取点赞职位", description = "获取当前用户点赞的所有职位")
+    public R<Page<JobDetailOutputDto>> getLikedJobs(@RequestBody JobListInputDto request) {
+        return R.success(jobLikesService.getUserLikedJobs(request));
+    }
+    
+    /**
      * 发布职位接口
      */
     @PostMapping("createJob")
