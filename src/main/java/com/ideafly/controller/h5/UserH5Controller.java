@@ -108,6 +108,10 @@ public class UserH5Controller {
         profile.put("bio", user.getBio());
         profile.put("totalLikes", user.getTotalLikes() != null ? user.getTotalLikes() : 0);
         
+        // 添加性别和位置字段
+        profile.put("gender", user.getGender());
+        profile.put("location", user.getLocation());
+        
         // 添加关注统计信息
         try {
             UserFollowStatsDto followStats = userFollowService.getUserFollowStats(userId);
