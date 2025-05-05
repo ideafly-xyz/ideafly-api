@@ -86,7 +86,7 @@ public class UserH5Controller {
             System.out.println("使用当前登录用户ID: " + targetUserId);
             if (targetUserId == null) {
                 System.out.println("错误: 未登录且未指定用户ID");
-                return R.error("未登录且未指定用户ID，请提供要查询的用户ID");
+                return R.error("请提供要查询的用户ID");
             }
         }
         
@@ -181,7 +181,7 @@ public class UserH5Controller {
             if (targetUserId == null) {
                 targetUserId = UserContextHolder.getUid();
                 if (targetUserId == null) {
-                    return R.error("未登录且未指定用户ID，请提供要查询的用户ID");
+                    return R.error("请提供要查询的用户ID");
                 }
             }
             

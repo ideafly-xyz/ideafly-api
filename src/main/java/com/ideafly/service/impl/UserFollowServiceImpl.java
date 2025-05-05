@@ -131,11 +131,12 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      */
     @Override
     public UserFollowStatsDto getUserFollowStats(Integer userId) {
-        // 当userId为null时,如果未登录,直接抛出异常
+        // 当userId为null时，尝试从认证信息获取用户ID
+        // 如果认证信息也没有，则抛出异常提示需要userId参数
         if (userId == null) {
             userId = UserContextHolder.getUid();
             if (userId == null) {
-                throw new IllegalArgumentException("未登录且未指定用户ID，请提供要查询的用户ID");
+                throw new IllegalArgumentException("请提供要查询的用户ID");
             }
         }
         
