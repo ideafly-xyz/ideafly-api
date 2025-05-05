@@ -29,7 +29,6 @@ public class Users {
     private String wechatId; // 微信号，唯一
     private String telegramId; // Telegram ID，唯一
     private String telegramUsername; // Telegram用户名
-    private Integer totalLikes; // 获得的总点赞数
     private Integer status; // 账号状态，枚举类型：1 (激活), 0 (已删除)，默认 1
     private Integer role; // 用户角色，0普通用户，1管理员，默认0
     private Date createdAt; // 创建时间

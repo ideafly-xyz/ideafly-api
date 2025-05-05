@@ -235,17 +235,8 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         }
         
         Integer authorId = job.getUserId();
-        Users author = usersService.getById(authorId);
-        if (author == null) {
-            System.out.println("作者不存在，用户ID: " + authorId);
-            return;
-        }
+        // 不再需要获取author对象和totalLikes字段
         
-        // 初始化总点赞数（如果为null）
-        if (author.getTotalLikes() == null) {
-            author.setTotalLikes(0);
-        }
-            
         // 判断操作类型
         if (Objects.equals(dto.getIsLike(), 1)) {
             // 添加点赞
@@ -257,19 +248,13 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
                 jobLike.setStatus(1); // 有效状态
                 this.save(jobLike);
                 
-                // 更新作者总点赞数
-                author.setTotalLikes(author.getTotalLikes() + 1);
-                usersService.updateById(author);
-                System.out.println("增加作者点赞数，作者ID: " + authorId + ", 新点赞总数: " + author.getTotalLikes());
+                System.out.println("添加点赞，职位ID: " + dto.getJobId() + ", 用户ID: " + uid);
             } else if (like.getStatus() == 0) {
                 // 有记录但已取消，更新状态
                 like.setStatus(1);
                 this.updateById(like);
                 
-                // 更新作者总点赞数
-                author.setTotalLikes(author.getTotalLikes() + 1);
-                usersService.updateById(author);
-                System.out.println("恢复点赞，增加作者点赞数，作者ID: " + authorId + ", 新点赞总数: " + author.getTotalLikes());
+                System.out.println("恢复点赞，职位ID: " + dto.getJobId() + ", 用户ID: " + uid);
             }
             // 已经点赞的不做处理
         } else {
@@ -279,12 +264,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
                 like.setStatus(0);
                 this.updateById(like);
                 
-                // 更新作者总点赞数
-                if (author.getTotalLikes() > 0) {
-                    author.setTotalLikes(author.getTotalLikes() - 1);
-                    usersService.updateById(author);
-                    System.out.println("减少作者点赞数，作者ID: " + authorId + ", 新点赞总数: " + author.getTotalLikes());
-                }
+                System.out.println("取消点赞，职位ID: " + dto.getJobId() + ", 用户ID: " + uid);
             }
             // 不存在或已取消的不做处理
         }
@@ -365,6 +345,43 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         } catch (Exception e) {
             System.out.println("【性能日志】批量查询点赞状态异常: " + e.getMessage());
             return result;
+        }
+    }
+    
+    /**
+     * 根据用户ID计算该用户获得的总点赞数
+     * 此方法从job_likes表中动态计算，替代原先在users表中存储的totalLikes字段
+     */
+    public Integer calculateUserTotalLikes(Integer userId) {
+        if (userId == null) {
+            return 0;
+        }
+        
+        try {
+            // 查询用户发布的所有职位
+            List<Jobs> userJobs = jobsService.lambdaQuery()
+                .eq(Jobs::getUserId, userId)
+                .list();
+                
+            if (userJobs.isEmpty()) {
+                return 0;
+            }
+            
+            // 提取所有职位ID
+            List<Integer> jobIds = userJobs.stream()
+                .map(Jobs::getId)
+                .collect(Collectors.toList());
+                
+            // 统计这些职位获得的有效点赞数（status=1）
+            Integer totalLikes = this.lambdaQuery()
+                .in(JobLikes::getJobId, jobIds)
+                .eq(JobLikes::getStatus, 1)
+                .count().intValue();
+                
+            return totalLikes;
+        } catch (Exception e) {
+            System.out.println("计算用户总点赞数失败: " + e.getMessage());
+            return 0;
         }
     }
 }

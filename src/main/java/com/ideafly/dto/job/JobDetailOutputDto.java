@@ -14,7 +14,6 @@ public class JobDetailOutputDto {
     private String publisherAvatar;
     private String postTitle;
     private String postContent;
-    private String company; // 公司
     @Schema(description = "发布时间", name = "publish_time")
     private String publishTime;
     private LocalDateTime updatedAt;

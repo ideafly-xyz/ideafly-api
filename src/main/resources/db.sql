@@ -20,7 +20,6 @@ CREATE TABLE users (
                        wechat_id VARCHAR(50)  COMMENT '微信号，唯一',
                        telegram_id VARCHAR(50)  COMMENT 'Telegram ID，唯一',
                        telegram_username VARCHAR(50) COMMENT 'Telegram用户名',
-                       total_likes INT DEFAULT 0 COMMENT '获得的总点赞数',
                        status smallint DEFAULT 1 COMMENT '账号状态，枚举类型：1 (激活), 0 (已删除)，默认 1',
                        role smallint DEFAULT 0 COMMENT '用户角色，0普通用户，1管理员，默认0',
                        created_at datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间，默认当前时间戳',

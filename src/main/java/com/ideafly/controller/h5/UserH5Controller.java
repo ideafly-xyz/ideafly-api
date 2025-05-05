@@ -7,6 +7,7 @@ import com.ideafly.dto.user.UpdateUserInputDto;
 import com.ideafly.dto.user.UserFollowStatsDto;
 import com.ideafly.dto.user.UserGetOutputDto;
 import com.ideafly.model.Users;
+import com.ideafly.service.JobLikesService;
 import com.ideafly.service.UserFollowService;
 import com.ideafly.service.UsersService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,9 @@ public class UserH5Controller {
     
     @Resource
     private UserFollowService userFollowService;
+    
+    @Resource
+    private JobLikesService jobLikesService;
 
     @GetMapping("get")
     @Operation(summary = "获取用户信息", description = "获取用户信息")
@@ -46,7 +50,10 @@ public class UserH5Controller {
         userGetOutputDto.setPersonalBio(user.getBio());
         userGetOutputDto.setLocation(user.getLocation());
         userGetOutputDto.setGender(user.getGender());
-        userGetOutputDto.setTotalLikes(user.getTotalLikes() != null ? user.getTotalLikes() : 0);
+        
+        // 从job_likes表计算总点赞数
+        Integer totalLikes = jobLikesService.calculateUserTotalLikes(uid);
+        userGetOutputDto.setTotalLikes(totalLikes);
         
         // 添加关注统计信息
         try {
@@ -81,8 +88,8 @@ public class UserH5Controller {
             return R.error("用户不存在");
         }
         
-        // 确保总点赞数不为null
-        Integer totalLikes = user.getTotalLikes() != null ? user.getTotalLikes() : 0;
+        // 从job_likes表计算总点赞数
+        Integer totalLikes = jobLikesService.calculateUserTotalLikes(targetUserId);
         
         Map<String, Object> result = new HashMap<>();
         result.put("userId", user.getId());
@@ -106,7 +113,10 @@ public class UserH5Controller {
         profile.put("username", user.getUsername());
         profile.put("avatar", user.getAvatar());
         profile.put("bio", user.getBio());
-        profile.put("totalLikes", user.getTotalLikes() != null ? user.getTotalLikes() : 0);
+        
+        // 从job_likes表计算总点赞数
+        Integer totalLikes = jobLikesService.calculateUserTotalLikes(userId);
+        profile.put("totalLikes", totalLikes);
         
         // 添加性别和位置字段
         profile.put("gender", user.getGender());
