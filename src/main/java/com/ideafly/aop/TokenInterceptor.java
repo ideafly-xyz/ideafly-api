@@ -51,7 +51,9 @@ public class TokenInterceptor implements HandlerInterceptor {
     private static final String[] PUBLIC_PATHS = {
             "/api/jobs/list",         // 职位列表（公开，但尝试获取用户信息）
             "/api/jobs/getComment",   // 评论列表（公开，允许未登录用户查看）
-            "/api/user/profile/"      // 用户资料（公开，允许未登录用户查看其他用户资料）
+            "/api/user/profile/",     // 用户资料（公开，允许未登录用户查看其他用户资料）
+            "/api/user/totalLikes",   // 用户总赞数（公开，允许未登录查看）
+            "/api/user/followStats"   // 用户关注统计（公开，允许未登录查看）
     };
 
     @Override

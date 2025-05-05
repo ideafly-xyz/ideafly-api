@@ -27,7 +27,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(tokenInterceptor)
                 .addPathPatterns("/**") // 拦截所有请求
                 .excludePathPatterns(
-                        "/v3/api-docs/*"// 排除发送短信接口
+                        "/v3/api-docs/**", // 排除API文档
+                        "/api/user/totalLikes", // 排除获取用户总点赞接口
+                        "/api/user/followStats", // 排除获取用户关注统计接口
+                        "/api/user/profile/**" // 排除用户资料接口
                         // 可以添加其他不需要token验证的路径
                 );
     }
