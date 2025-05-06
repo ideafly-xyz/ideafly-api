@@ -44,13 +44,15 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         long startTime = System.currentTimeMillis();
         System.out.println("【性能日志】开始获取职位列表 - 参数: " + request);
         
-        // 1. 确保分页参数合法
+        // 1. 确保分页参数合法，固定pageSize为3，保持前后端一致
         if (request.getPageNum() == null || request.getPageNum() < 1) {
             request.setPageNum(1);
         }
         
-        if (request.getPageSize() == null || request.getPageSize() < 1) {
-            request.setPageSize(20);
+        // 如果pageSize不是3，强制设为3，保持前后端一致
+        if (request.getPageSize() == null || request.getPageSize() != 3) {
+            System.out.println("【兼容处理】客户端pageSize参数不是3，强制设为3，原值: " + request.getPageSize());
+            request.setPageSize(3);
         }
         
         // 2. 构建分页对象并查询数据库
@@ -65,6 +67,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         
         // 2.2 计算实际的总页数
         int totalPages = (int) ((totalCount + request.getPageSize() - 1) / request.getPageSize());
+        System.out.println("【分页计算】总记录数: " + totalCount + ", 页大小: " + request.getPageSize() + ", 计算的总页数: " + totalPages);
         
         // 2.3 处理请求页码超出范围的情况
         if (request.getPageNum() > totalPages && totalPages > 0) {
