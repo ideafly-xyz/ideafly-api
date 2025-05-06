@@ -39,7 +39,33 @@ public class JobH5Controller {
     @NoAuth
     @PostMapping("list")
     public R<Page<JobDetailOutputDto>> getJobList(@RequestBody JobListInputDto request) {
-        return R.success(jobService.getJobList(request));
+        // 确保请求参数合法
+        if (request == null) {
+            request = new JobListInputDto();
+        }
+        
+        // 设置默认值
+        if (request.getPageNum() == null || request.getPageNum() < 1) {
+            request.setPageNum(1);
+        }
+        
+        if (request.getPageSize() == null || request.getPageSize() < 1) {
+            request.setPageSize(20);
+        }
+        
+        // 添加日志，方便调试分页问题
+        System.out.println("【JobH5Controller】获取职位列表，页码: " + request.getPageNum() + ", 每页数量: " + request.getPageSize());
+        
+        // 调用服务获取结果
+        Page<JobDetailOutputDto> result = jobService.getJobList(request);
+        
+        // 输出结果信息
+        System.out.println("【JobH5Controller】获取职位列表结果，当前页: " + result.getCurrent() + 
+                ", 总页数: " + result.getPages() + 
+                ", 总记录数: " + result.getTotal() + 
+                ", 本页记录数: " + result.getRecords().size());
+        
+        return R.success(result);
     }
     
     /**

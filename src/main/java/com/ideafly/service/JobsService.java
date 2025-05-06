@@ -44,22 +44,60 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         long startTime = System.currentTimeMillis();
         System.out.println("【性能日志】开始获取职位列表 - 参数: " + request);
         
-        // 1. 构建分页对象并查询数据库
+        // 1. 确保分页参数合法
+        if (request.getPageNum() == null || request.getPageNum() < 1) {
+            request.setPageNum(1);
+        }
+        
+        if (request.getPageSize() == null || request.getPageSize() < 1) {
+            request.setPageSize(20);
+        }
+        
+        // 2. 构建分页对象并查询数据库
         long dbQueryStart = System.currentTimeMillis();
         Page<Jobs> page = PageUtil.build(request);
+        
+        // 2.1 先查询总记录数，确保分页计算准确
+        long countStart = System.currentTimeMillis();
+        long totalCount = this.lambdaQuery().count();
+        long countEnd = System.currentTimeMillis();
+        System.out.println("【性能日志】数据库总数查询耗时: " + (countEnd - countStart) + "ms, 总记录数: " + totalCount);
+        
+        // 2.2 计算实际的总页数
+        int totalPages = (int) ((totalCount + request.getPageSize() - 1) / request.getPageSize());
+        
+        // 2.3 处理请求页码超出范围的情况
+        if (request.getPageNum() > totalPages && totalPages > 0) {
+            System.out.println("【性能日志】请求的页码 " + request.getPageNum() + " 超出范围(总页数:" + totalPages + ")，返回最后一页");
+            request.setPageNum(totalPages);
+            page = PageUtil.build(request);
+        }
+        
+        // 2.4 执行分页查询
         Page<Jobs> pageResult = this.lambdaQuery()
                 .orderByDesc(Jobs::getId)
                 .page(page);
+        
+        // 2.5 更新总页数，确保一致性
+        pageResult.setTotal(totalCount);
+        pageResult.setPages(totalPages);
+        
         List<Jobs> jobs = pageResult.getRecords();
         long dbQueryEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】数据库查询耗时: " + (dbQueryEnd - dbQueryStart) + "ms, 记录数: " + jobs.size());
+        System.out.println("【性能日志】数据库查询耗时: " + (dbQueryEnd - dbQueryStart) + "ms, 记录数: " + jobs.size() + 
+                ", 当前页: " + request.getPageNum() + ", 总页数: " + totalPages);
         
         if (jobs.isEmpty()) {
             System.out.println("【性能日志】职位列表为空，直接返回");
-            return PageUtil.build(page, new ArrayList<>());
+            Page<JobDetailOutputDto> emptyResult = PageUtil.build(pageResult, java.util.Collections.emptyList());
+            // 设置正确的总页数信息
+            emptyResult.setTotal(totalCount);
+            emptyResult.setPages(totalPages);
+            emptyResult.setCurrent(request.getPageNum());
+            return emptyResult;
         }
         
-        // 2. 批量获取所有用户ID
+        // 3. 批量获取所有用户ID
         long batchPrepStart = System.currentTimeMillis();
         Set<Integer> userIds = jobs.stream()
             .map(Jobs::getUserId)
@@ -133,8 +171,11 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             
             // 批量查询收藏状态
             try {
+                System.out.println("【性能日志】开始批量查询收藏状态 - 职位数量: " + jobIds.size());
                 Map<Integer, Boolean> tempFavoriteMap = jobFavoriteService.batchGetFavoriteStatus(jobIds, currentUserId);
                 favoriteMap.putAll(tempFavoriteMap);
+                System.out.println("【性能日志】批量查询收藏状态完成 - 耗时: " + (System.currentTimeMillis() - statusBatchQueryStart) + "ms, 已收藏数量: " + 
+                        tempFavoriteMap.values().stream().filter(v -> v).count() + "/" + jobIds.size());
                 System.out.println("【性能日志】批量获取收藏状态成功，数量: " + favoriteMap.size());
             } catch (Exception e) {
                 System.out.println("【性能日志】批量获取收藏状态异常: " + e.getMessage());
@@ -144,8 +185,11 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             
             // 批量查询点赞状态
             try {
+                System.out.println("【性能日志】开始批量查询点赞状态 - 职位数量: " + jobIds.size());
                 Map<Integer, Boolean> tempLikeMap = jobLikesService.batchGetLikeStatus(jobIds, currentUserId);
                 likeMap.putAll(tempLikeMap);
+                System.out.println("【性能日志】批量查询点赞状态完成 - 耗时: " + (System.currentTimeMillis() - statusBatchQueryStart) + "ms, 已点赞数量: " + 
+                        tempLikeMap.values().stream().filter(v -> v).count() + "/" + jobIds.size());
                 System.out.println("【性能日志】批量获取点赞状态成功，数量: " + likeMap.size());
             } catch (Exception e) {
                 System.out.println("【性能日志】批量获取点赞状态异常: " + e.getMessage());
@@ -200,7 +244,12 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 (dtoList.size() > 0 ? (dtoConvertEnd - dtoConvertStart) / dtoList.size() : 0) + "ms");
         
         // 7. 构建结果并返回
-        Page<JobDetailOutputDto> result = PageUtil.build(page, dtoList);
+        Page<JobDetailOutputDto> result = PageUtil.build(pageResult, dtoList);
+        
+        // 确保分页信息一致性
+        result.setTotal(totalCount);
+        result.setPages(totalPages);
+        result.setCurrent(request.getPageNum());
         
         long endTime = System.currentTimeMillis();
         System.out.println("【性能日志】职位列表获取完成 - 批量优化后总耗时: " + (endTime - startTime) + "ms");
