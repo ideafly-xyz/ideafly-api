@@ -2,6 +2,7 @@ package com.ideafly.service;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -9,14 +10,17 @@ import com.github.xiaoymin.knife4j.core.util.StrUtil;
 import com.ideafly.common.*;
 import com.ideafly.common.job.*;
 import com.ideafly.dto.job.CreateJobInputDto;
+import com.ideafly.dto.job.CursorResponseDto;
 import com.ideafly.dto.job.JobDetailOutputDto;
 import com.ideafly.dto.job.JobListInputDto;
 import com.ideafly.dto.job.NextJobInputDto;
 import com.ideafly.mapper.JobsMapper;
 import com.ideafly.model.Jobs;
 import com.ideafly.model.Users;
+import com.ideafly.utils.CursorUtils;
 import com.ideafly.utils.PageUtil;
 import com.ideafly.utils.TimeUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -40,9 +44,289 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     @Resource
     private UserFollowService userFollowService;
 
-    public Page<JobDetailOutputDto> getJobList(JobListInputDto request) {
+    /**
+     * 获取职位列表 - 支持传统分页和基于游标的分页
+     */
+    public Object getJobList(JobListInputDto request) {
         long startTime = System.currentTimeMillis();
         System.out.println("【性能日志】开始获取职位列表 - 参数: " + request);
+        
+        // 检查是否使用游标分页
+        if (Boolean.TRUE.equals(request.getUseCursor())) {
+            return getJobsWithCursor(request);
+        } else {
+            return getJobsWithTraditionalPaging(request);
+        }
+    }
+    
+    /**
+     * 使用游标分页获取职位列表
+     */
+    private CursorResponseDto<JobDetailOutputDto> getJobsWithCursor(JobListInputDto request) {
+        System.out.println("【性能日志】使用游标分页获取职位列表");
+        long startTime = System.currentTimeMillis();
+        
+        // 默认每页大小，如果未指定
+        if (request.getPageSize() == null || request.getPageSize() <= 0) {
+            request.setPageSize(3); // 保持与前端一致的默认值
+        }
+        
+        // 构建查询条件
+        LambdaQueryWrapper<Jobs> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 解析游标
+        String maxCursor = request.getMaxCursor();
+        String minCursor = request.getMinCursor();
+        
+        boolean isForward = StringUtils.isNotBlank(maxCursor); // 向前查询（历史内容）
+        boolean isBackward = StringUtils.isNotBlank(minCursor); // 向后查询（新内容）
+        
+        if (isForward && isBackward) {
+            // 不能同时指定两个方向，以maxCursor为优先
+            isBackward = false;
+        }
+        
+        // 根据游标构建查询条件
+        if (isForward) {
+            // 解析maxCursor (向左滑，获取历史内容)
+            Map<String, Object> maxCursorValues = CursorUtils.decodeCursor(maxCursor);
+            if (maxCursorValues != null) {
+                final Date forwardTimestamp = (Date) maxCursorValues.get("timestamp");
+                final Integer forwardId = (Integer) maxCursorValues.get("id");
+                
+                // 构建查询条件：获取比当前游标更早的内容
+                if (forwardTimestamp != null && forwardId != null) {
+                    // 时间相同时按ID降序，时间比游标早或时间相同但ID更小
+                    queryWrapper.and(w -> w
+                            .lt(Jobs::getCreatedAt, forwardTimestamp)
+                            .or(o -> o
+                                    .eq(Jobs::getCreatedAt, forwardTimestamp)
+                                    .lt(Jobs::getId, forwardId)
+                            )
+                    );
+                }
+            }
+            // 按时间降序，同一时间按ID降序
+            queryWrapper.orderByDesc(Jobs::getCreatedAt, Jobs::getId);
+            
+        } else if (isBackward) {
+            // 解析minCursor (向右滑，获取更新内容)
+            Map<String, Object> minCursorValues = CursorUtils.decodeCursor(minCursor);
+            if (minCursorValues != null) {
+                final Date backwardTimestamp = (Date) minCursorValues.get("timestamp");
+                final Integer backwardId = (Integer) minCursorValues.get("id");
+                
+                // 构建查询条件：获取比当前游标更新的内容
+                if (backwardTimestamp != null && backwardId != null) {
+                    // 时间比游标新或时间相同但ID更大
+                    queryWrapper.and(w -> w
+                            .gt(Jobs::getCreatedAt, backwardTimestamp)
+                            .or(o -> o
+                                    .eq(Jobs::getCreatedAt, backwardTimestamp)
+                                    .gt(Jobs::getId, backwardId)
+                            )
+                    );
+                }
+            }
+            // 按时间升序，同一时间按ID升序（获取后需要反转）
+            queryWrapper.orderByAsc(Jobs::getCreatedAt, Jobs::getId);
+            
+        } else {
+            // 没有指定游标，获取最新内容
+            queryWrapper.orderByDesc(Jobs::getCreatedAt, Jobs::getId);
+        }
+        
+        // 查询数据
+        Integer limit = request.getPageSize() + 1; // 多查一条用于判断是否有更多数据
+        List<Jobs> jobs = this.list(queryWrapper.last("LIMIT " + limit));
+        
+        // 如果是向后查询，需要反转结果顺序
+        if (isBackward && !jobs.isEmpty()) {
+            Collections.reverse(jobs);
+        }
+        
+        // 判断是否有更多数据
+        boolean hasMore = jobs.size() > request.getPageSize();
+        if (hasMore) {
+            // 移除多查的一条数据
+            jobs.remove(jobs.size() - 1);
+        }
+        
+        // 处理空结果
+        if (jobs.isEmpty()) {
+            return new CursorResponseDto<>(
+                    new ArrayList<>(),
+                    maxCursor, // 保持原游标
+                    minCursor, // 保持原游标
+                    isForward ? hasMore : false,
+                    isBackward ? hasMore : false,
+                    0L
+            );
+        }
+        
+        // 计算下一个游标
+        String nextMaxCursor = null;
+        String nextMinCursor = null;
+        
+        if (!jobs.isEmpty()) {
+            // 获取历史方向的下一个游标（最后一条记录）
+            Jobs lastJob = jobs.get(jobs.size() - 1);
+            nextMaxCursor = CursorUtils.encodeCursor(lastJob.getCreatedAt(), lastJob.getId());
+            
+            // 获取新内容方向的下一个游标（第一条记录）
+            Jobs firstJob = jobs.get(0);
+            nextMinCursor = CursorUtils.encodeCursor(firstJob.getCreatedAt(), firstJob.getId());
+        }
+        
+        // 处理作品数据，与现有逻辑保持一致
+        // 转换为DTO
+        List<JobDetailOutputDto> dtoList = processJobsForOutput(jobs);
+        
+        long endTime = System.currentTimeMillis();
+        System.out.println("【性能日志】游标分页获取职位列表完成 - 耗时: " + (endTime - startTime) + "ms");
+        
+        return new CursorResponseDto<>(
+                dtoList,
+                isForward && hasMore ? nextMaxCursor : maxCursor,
+                isBackward && hasMore ? nextMinCursor : minCursor,
+                isForward ? hasMore : true, // 历史方向是否有更多数据
+                isBackward ? hasMore : true, // 新内容方向是否有更多数据
+                (long) dtoList.size()
+        );
+    }
+    
+    /**
+     * 处理作品数据，转换为DTO
+     */
+    private List<JobDetailOutputDto> processJobsForOutput(List<Jobs> jobs) {
+        if (jobs.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // 批量获取所有用户ID
+        Set<Integer> userIds = jobs.stream()
+                .map(Jobs::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        
+        List<Integer> jobIds = jobs.stream()
+                .map(Jobs::getId)
+                .collect(Collectors.toList());
+        
+        // 批量查询用户信息
+        final Map<Integer, Users> userMap;
+        if (!userIds.isEmpty()) {
+            List<Users> users = usersService.listByIds(userIds);
+            userMap = users.stream()
+                    .collect(Collectors.toMap(Users::getId, user -> user, (a, b) -> a));
+        } else {
+            userMap = new HashMap<>();
+        }
+        
+        // 获取当前用户
+        Integer currentUserId = UserContextHolder.getUid();
+        
+        // 批量查询收藏和点赞状态
+        final Map<Integer, Boolean> favoriteMap = new HashMap<>();
+        final Map<Integer, Boolean> likeMap = new HashMap<>();
+        
+        // 批量查询点赞、收藏和评论数量
+        final Map<Integer, Integer> likesCountMap = new HashMap<>();
+        final Map<Integer, Integer> favoritesCountMap = new HashMap<>();
+        final Map<Integer, Integer> commentsCountMap = new HashMap<>();
+        
+        // 批量获取统计数据
+        if (!jobIds.isEmpty()) {
+            try {
+                // 批量查询点赞数
+                for (Integer jobId : jobIds) {
+                    int likesCount = jobLikesService.getJobLikesCount(jobId);
+                    likesCountMap.put(jobId, likesCount);
+                }
+                
+                // 批量查询收藏数
+                for (Integer jobId : jobIds) {
+                    int favoritesCount = jobFavoriteService.getJobFavoritesCount(jobId);
+                    favoritesCountMap.put(jobId, favoritesCount);
+                }
+                
+                // 批量查询评论数
+                for (Integer jobId : jobIds) {
+                    int commentsCount = jobCommentsService.getJobCommentsCount(jobId);
+                    commentsCountMap.put(jobId, commentsCount);
+                }
+            } catch (Exception e) {
+                System.out.println("【性能日志】批量获取统计数据异常: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        
+        if (currentUserId != null && !jobIds.isEmpty()) {
+            try {
+                // 批量查询收藏状态
+                Map<Integer, Boolean> tempFavoriteMap = jobFavoriteService.batchGetFavoriteStatus(jobIds, currentUserId);
+                favoriteMap.putAll(tempFavoriteMap);
+                
+                // 批量查询点赞状态
+                Map<Integer, Boolean> tempLikeMap = jobLikesService.batchGetLikeStatus(jobIds, currentUserId);
+                likeMap.putAll(tempLikeMap);
+            } catch (Exception e) {
+                System.out.println("【性能日志】批量获取状态异常: " + e.getMessage());
+                // 设置默认值
+                jobIds.forEach(jobId -> {
+                    favoriteMap.put(jobId, false);
+                    likeMap.put(jobId, false);
+                });
+            }
+        } else {
+            // 用户未登录，所有职位设置默认值
+            jobIds.forEach(jobId -> {
+                favoriteMap.put(jobId, false);
+                likeMap.put(jobId, false);
+            });
+        }
+        
+        // 转换DTO
+        return jobs.stream().map(job -> {
+            JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
+            
+            // 设置职位基本信息
+            dto.setPostTitle(job.getPostTitle());
+            dto.setPostContent(job.getPostContent());
+            
+            // 设置统计数据
+            dto.setLikes(likesCountMap.getOrDefault(job.getId(), 0));
+            dto.setFavorites(favoritesCountMap.getOrDefault(job.getId(), 0));
+            dto.setComments(commentsCountMap.getOrDefault(job.getId(), 0));
+            dto.setShares(0); // 暂时设置为0
+            
+            // 设置用户信息
+            Users user = userMap.get(job.getUserId());
+            if (user != null) {
+                dto.setPublisherName(user.getUsername());
+                dto.setPublisherAvatar(user.getAvatar());
+            }
+            
+            // 设置发布时间
+            dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
+            
+            // 设置收藏和点赞状态
+            dto.setIsLike(likeMap.getOrDefault(job.getId(), false));
+            dto.setIsFavorite(favoriteMap.getOrDefault(job.getId(), false));
+            
+            // 设置游标值（前端可能需要）
+            dto.setCursor(CursorUtils.encodeCursor(job.getCreatedAt(), job.getId()));
+            
+            return dto;
+        }).collect(Collectors.toList());
+    }
+    
+    /**
+     * 使用传统分页方式获取职位列表（兼容旧版本）
+     */
+    private Page<JobDetailOutputDto> getJobsWithTraditionalPaging(JobListInputDto request) {
+        long startTime = System.currentTimeMillis();
+        System.out.println("【性能日志】使用传统分页获取职位列表");
         
         // 1. 确保分页参数合法，固定pageSize为3，保持前后端一致
         if (request.getPageNum() == null || request.getPageNum() < 1) {
@@ -57,7 +341,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         
         // 2. 构建分页对象并查询数据库
         long dbQueryStart = System.currentTimeMillis();
-        Page<Jobs> page = PageUtil.build(request);
+        Page<Jobs> page = PageUtil.<Jobs>build(request);
         
         // 2.1 先查询总记录数，确保分页计算准确
         long countStart = System.currentTimeMillis();
@@ -73,7 +357,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         if (request.getPageNum() > totalPages && totalPages > 0) {
             System.out.println("【性能日志】请求的页码 " + request.getPageNum() + " 超出范围(总页数:" + totalPages + ")，返回最后一页");
             request.setPageNum(totalPages);
-            page = PageUtil.build(request);
+            page = PageUtil.<Jobs>build(request);
         }
         
         // 2.4 执行分页查询
@@ -100,162 +384,17 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             return emptyResult;
         }
         
-        // 3. 批量获取所有用户ID
-        long batchPrepStart = System.currentTimeMillis();
-        Set<Integer> userIds = jobs.stream()
-            .map(Jobs::getUserId)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
+        // 处理记录并转换为DTO
+        List<JobDetailOutputDto> dtoList = processJobsForOutput(jobs);
         
-        List<Integer> jobIds = jobs.stream()
-            .map(Jobs::getId)
-            .collect(Collectors.toList());
-        
-        // 3. 批量查询用户信息（一次查询替代N次）
-        final Map<Integer, Users> userMap;
-        if (!userIds.isEmpty()) {
-            long userBatchQueryStart = System.currentTimeMillis();
-            List<Users> users = usersService.listByIds(userIds);
-            userMap = users.stream()
-                .collect(Collectors.toMap(Users::getId, user -> user, (a, b) -> a));
-            long userBatchQueryEnd = System.currentTimeMillis();
-            System.out.println("【性能日志】批量用户查询耗时: " + (userBatchQueryEnd - userBatchQueryStart) + "ms, 用户数: " + users.size());
-        } else {
-            userMap = new HashMap<>();
-        }
-        
-        // 4. 获取当前用户
-        Integer currentUserId = UserContextHolder.getUid();
-        long batchPrepEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】批量查询准备耗时: " + (batchPrepEnd - batchPrepStart) + "ms");
-        
-        // 5. 批量查询收藏和点赞状态
-        final Map<Integer, Boolean> favoriteMap = new HashMap<>();
-        final Map<Integer, Boolean> likeMap = new HashMap<>();
-        
-        // 5.1 批量查询点赞、收藏和评论数量
-        final Map<Integer, Integer> likesCountMap = new HashMap<>();
-        final Map<Integer, Integer> favoritesCountMap = new HashMap<>();
-        final Map<Integer, Integer> commentsCountMap = new HashMap<>();
-        
-        // 批量获取统计数据
-        if (!jobIds.isEmpty()) {
-            long countsQueryStart = System.currentTimeMillis();
-            
-            try {
-                // 批量查询点赞数
-                for (Integer jobId : jobIds) {
-                    int likesCount = jobLikesService.getJobLikesCount(jobId);
-                    likesCountMap.put(jobId, likesCount);
-                }
-                
-                // 批量查询收藏数
-                for (Integer jobId : jobIds) {
-                    int favoritesCount = jobFavoriteService.getJobFavoritesCount(jobId);
-                    favoritesCountMap.put(jobId, favoritesCount);
-                }
-                
-                // 批量查询评论数
-                for (Integer jobId : jobIds) {
-                    int commentsCount = jobCommentsService.getJobCommentsCount(jobId);
-                    commentsCountMap.put(jobId, commentsCount);
-                }
-            } catch (Exception e) {
-                System.out.println("【性能日志】批量获取统计数据异常: " + e.getMessage());
-                e.printStackTrace();
-            }
-            
-            long countsQueryEnd = System.currentTimeMillis();
-            System.out.println("【性能日志】批量统计数据查询耗时: " + (countsQueryEnd - countsQueryStart) + "ms");
-        }
-        
-        if (currentUserId != null && !jobIds.isEmpty()) {
-            long statusBatchQueryStart = System.currentTimeMillis();
-            
-            // 批量查询收藏状态
-            try {
-                System.out.println("【性能日志】开始批量查询收藏状态 - 职位数量: " + jobIds.size());
-                Map<Integer, Boolean> tempFavoriteMap = jobFavoriteService.batchGetFavoriteStatus(jobIds, currentUserId);
-                favoriteMap.putAll(tempFavoriteMap);
-                System.out.println("【性能日志】批量查询收藏状态完成 - 耗时: " + (System.currentTimeMillis() - statusBatchQueryStart) + "ms, 已收藏数量: " + 
-                        tempFavoriteMap.values().stream().filter(v -> v).count() + "/" + jobIds.size());
-                System.out.println("【性能日志】批量获取收藏状态成功，数量: " + favoriteMap.size());
-            } catch (Exception e) {
-                System.out.println("【性能日志】批量获取收藏状态异常: " + e.getMessage());
-                // 设置默认值
-                jobIds.forEach(jobId -> favoriteMap.put(jobId, false));
-            }
-            
-            // 批量查询点赞状态
-            try {
-                System.out.println("【性能日志】开始批量查询点赞状态 - 职位数量: " + jobIds.size());
-                Map<Integer, Boolean> tempLikeMap = jobLikesService.batchGetLikeStatus(jobIds, currentUserId);
-                likeMap.putAll(tempLikeMap);
-                System.out.println("【性能日志】批量查询点赞状态完成 - 耗时: " + (System.currentTimeMillis() - statusBatchQueryStart) + "ms, 已点赞数量: " + 
-                        tempLikeMap.values().stream().filter(v -> v).count() + "/" + jobIds.size());
-                System.out.println("【性能日志】批量获取点赞状态成功，数量: " + likeMap.size());
-            } catch (Exception e) {
-                System.out.println("【性能日志】批量获取点赞状态异常: " + e.getMessage());
-                // 设置默认值
-                jobIds.forEach(jobId -> likeMap.put(jobId, false));
-            }
-            
-            long statusBatchQueryEnd = System.currentTimeMillis();
-            System.out.println("【性能日志】批量状态查询耗时: " + (statusBatchQueryEnd - statusBatchQueryStart) + "ms");
-        } else {
-            // 用户未登录，所有职位设置默认值
-            System.out.println("【性能日志】用户未登录或职位列表为空，设置默认收藏和点赞状态");
-            jobIds.forEach(jobId -> {
-                favoriteMap.put(jobId, false);
-                likeMap.put(jobId, false);
-            });
-        }
-        
-        // 6. 转换DTO（使用批量查询结果）
-        long dtoConvertStart = System.currentTimeMillis();
-        List<JobDetailOutputDto> dtoList = jobs.stream().map(job -> {
-            JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
-            
-            // 设置职位基本信息
-            dto.setPostTitle(job.getPostTitle());
-            dto.setPostContent(job.getPostContent());
-            
-            // 设置统计数据
-            dto.setLikes(likesCountMap.getOrDefault(job.getId(), 0));
-            dto.setFavorites(favoritesCountMap.getOrDefault(job.getId(), 0));
-            dto.setComments(commentsCountMap.getOrDefault(job.getId(), 0));
-            dto.setShares(0); // 暂时设置为0，如果有共享计数表，可以从那里获取
-            
-            // 设置用户信息（从Map获取，避免查询）
-            Users user = userMap.get(job.getUserId());
-            if (user != null) {
-                dto.setPublisherName(user.getUsername());
-                dto.setPublisherAvatar(user.getAvatar());
-            }
-            
-            // 设置发布时间
-            dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
-            
-            // 设置收藏和点赞状态（从Map获取，避免查询）
-            dto.setIsLike(likeMap.getOrDefault(job.getId(), false));
-            dto.setIsFavorite(favoriteMap.getOrDefault(job.getId(), false));
-            
-            return dto;
-        }).collect(Collectors.toList());
-        long dtoConvertEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】DTO批量转换耗时: " + (dtoConvertEnd - dtoConvertStart) + "ms, 平均每条: " + 
-                (dtoList.size() > 0 ? (dtoConvertEnd - dtoConvertStart) / dtoList.size() : 0) + "ms");
-        
-        // 7. 构建结果并返回
+        // 构建分页结果
         Page<JobDetailOutputDto> result = PageUtil.build(pageResult, dtoList);
-        
-        // 确保分页信息一致性
         result.setTotal(totalCount);
         result.setPages(totalPages);
         result.setCurrent(request.getPageNum());
         
         long endTime = System.currentTimeMillis();
-        System.out.println("【性能日志】职位列表获取完成 - 批量优化后总耗时: " + (endTime - startTime) + "ms");
+        System.out.println("【性能日志】传统分页获取职位列表完成 - 耗时: " + (endTime - startTime) + "ms");
         
         return result;
     }
@@ -449,7 +588,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         }
         
         // 创建分页对象
-        Page<Jobs> page = PageUtil.build(request);
+        Page<Jobs> page = PageUtil.<Jobs>build(request);
         
         try {
             // 获取当前用户关注的用户ID列表
@@ -542,7 +681,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 .collect(Collectors.toList());
             
             // 构建分页结果
-            Page<JobDetailOutputDto> result = PageUtil.build(jobsPage, dtoList);
+            Page<JobDetailOutputDto> result = PageUtil.<JobDetailOutputDto>build(jobsPage, dtoList);
             
             long endTime = System.currentTimeMillis();
             System.out.println("【性能日志】获取关注用户帖子完成 - 耗时:" + (endTime - startTime) + "ms, 记录数:" + dtoList.size());
@@ -555,4 +694,4 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             throw new IllegalArgumentException("获取关注用户帖子失败: " + e.getMessage());
         }
     }
-}
+} 

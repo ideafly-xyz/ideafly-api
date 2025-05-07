@@ -2,12 +2,13 @@ package com.ideafly.dto.job;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import java.io.Serializable;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-public class JobDetailOutputDto {
+public class JobDetailOutputDto implements Serializable {
     private Integer id;
     private Integer userId;
     private String publisherName;
@@ -23,4 +24,5 @@ public class JobDetailOutputDto {
     private Integer shares;
     private Boolean isFavorite=false; // 是否收藏
     private Boolean isLike=false;
+    private String cursor; // 游标值，用于分页
 }

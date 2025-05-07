@@ -33,7 +33,8 @@ CREATE TABLE `jobs` (
                         `post_content` TEXT NOT NULL COMMENT '作品内容',
                         `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                         `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-                        INDEX `idx_user_id` (`user_id`)
+                        INDEX `idx_user_id` (`user_id`),
+                        INDEX `idx_created_at` (`created_at`) COMMENT '用于游标分页的索引'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='作品信息表';
 
 CREATE TABLE `job_comments` (
