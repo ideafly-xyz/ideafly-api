@@ -187,8 +187,8 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         
         return new CursorResponseDto<>(
                 dtoList,
-                isForward && hasMore ? nextMaxCursor : maxCursor,
-                isBackward && hasMore ? nextMinCursor : minCursor,
+                (!isForward && !isBackward && !jobs.isEmpty()) || (isForward && hasMore) ? nextMaxCursor : maxCursor,
+                (!isForward && !isBackward && !jobs.isEmpty()) || (isBackward && hasMore) ? nextMinCursor : minCursor,
                 isForward ? hasMore : true, // 历史方向是否有更多数据
                 isBackward ? hasMore : true, // 新内容方向是否有更多数据
                 (long) dtoList.size()
