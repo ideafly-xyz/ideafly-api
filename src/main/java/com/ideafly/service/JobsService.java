@@ -190,7 +190,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 (!isForward && !isBackward && !jobs.isEmpty()) || (isForward && hasMore) ? nextMaxCursor : maxCursor,
                 (!isForward && !isBackward && !jobs.isEmpty()) || (isBackward && hasMore) ? nextMinCursor : minCursor,
                 isForward ? hasMore : true, // 历史方向是否有更多数据
-                isBackward ? hasMore : true, // 新内容方向是否有更多数据
+                isBackward ? hasMore : false, // 新内容方向是否有更多数据（初始加载时为false，因为已加载最新数据）
                 (long) dtoList.size()
         );
     }
