@@ -125,6 +125,66 @@ public class JobH5Controller {
     }
     
     /**
+     * 获取当前用户自己发布的职位列表
+     */
+    @PostMapping("myPosts")
+    @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，支持游标分页")
+    public R<?> getMyPosts(@RequestBody JobListInputDto request) {
+        // 确保请求参数合法
+        if (request == null) {
+            request = new JobListInputDto();
+        }
+        
+        // 强制使用游标分页，忽略客户端设置
+        request.setUseCursor(true);
+        
+        // 设置默认值，但不覆盖客户端已设置的值
+        if (request.getPageNum() == null || request.getPageNum() < 1) {
+            request.setPageNum(1);
+        }
+        
+        // 仅在客户端未指定页面大小时设置默认值
+        if (request.getPageSize() == null || request.getPageSize() < 1) {
+            request.setPageSize(4); // 默认每页4个作品
+        }
+        
+        // 获取当前用户ID
+        Integer currentUserId = UserContextHolder.getUid();
+        if (currentUserId == null) {
+            return R.error("用户未登录");
+        }
+        
+        // 添加请求日志
+        System.out.println("【JobH5Controller】获取用户作品列表，用户ID: " + currentUserId + 
+                ", 页码: " + request.getPageNum() + 
+                ", 每页数量: " + request.getPageSize() + 
+                ", 使用游标: " + (Boolean.TRUE.equals(request.getUseCursor()) ? "是" : "否") +
+                ", 最大游标: " + request.getMaxCursor() +
+                ", 最小游标: " + request.getMinCursor());
+        
+        // 调用服务获取结果
+        Object result = jobService.getUserPosts(request, currentUserId);
+        
+        // 添加结果日志
+        if (result instanceof CursorResponseDto) {
+            CursorResponseDto<?> cursorResult = (CursorResponseDto<?>) result;
+            System.out.println("【JobH5Controller】获取用户作品列表结果，记录数: " + cursorResult.getRecords().size() + 
+                    ", 下一个maxCursor: " + cursorResult.getNextMaxCursor() +
+                    ", 下一个minCursor: " + cursorResult.getNextMinCursor() +
+                    ", 是否有更多历史内容: " + cursorResult.getHasMoreHistory() +
+                    ", 是否有更多新内容: " + cursorResult.getHasMoreNew());
+        } else if (result instanceof Page) {
+            Page<?> pageResult = (Page<?>) result;
+            System.out.println("【JobH5Controller】获取用户作品列表结果，当前页: " + pageResult.getCurrent() + 
+                    ", 总页数: " + pageResult.getPages() + 
+                    ", 总记录数: " + pageResult.getTotal() + 
+                    ", 本页记录数: " + pageResult.getRecords().size());
+        }
+        
+        return R.success(result);
+    }
+    
+    /**
      * 获取关注用户发布的帖子列表
      */
     @GetMapping("following")

@@ -694,4 +694,192 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             throw new IllegalArgumentException("获取关注用户帖子失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 获取用户发布的职位（支持游标分页）
+     */
+    public Object getUserPosts(JobListInputDto request, Integer userId) {
+        System.out.println("【性能日志】获取用户职位列表 - 用户ID: " + userId);
+        long startTime = System.currentTimeMillis();
+        
+        // 检查是否使用游标分页
+        if (Boolean.TRUE.equals(request.getUseCursor())) {
+            return getUserPostsWithCursor(request, userId);
+        } else {
+            return getUserPostsWithTraditionalPaging(request, userId);
+        }
+    }
+    
+    /**
+     * 使用游标分页获取用户职位
+     */
+    private CursorResponseDto<JobDetailOutputDto> getUserPostsWithCursor(JobListInputDto request, Integer userId) {
+        System.out.println("【性能日志】使用游标分页获取用户职位列表");
+        long startTime = System.currentTimeMillis();
+        
+        // 默认每页大小，仅在客户端未指定时设置
+        if (request.getPageSize() == null || request.getPageSize() <= 0) {
+            request.setPageSize(4); // 默认每页4个
+        }
+        
+        System.out.println("【getUserPostsWithCursor】请求的页面大小: " + request.getPageSize());
+        
+        // 构建查询条件
+        LambdaQueryWrapper<Jobs> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 只查询当前用户的作品
+        queryWrapper.eq(Jobs::getUserId, userId);
+        
+        // 解析游标
+        String maxCursor = request.getMaxCursor();
+        String minCursor = request.getMinCursor();
+        
+        boolean isForward = StringUtils.isNotBlank(maxCursor); // 向前查询（历史内容）
+        boolean isBackward = StringUtils.isNotBlank(minCursor); // 向后查询（新内容）
+        
+        if (isForward && isBackward) {
+            // 不能同时指定两个方向，以maxCursor为优先
+            isBackward = false;
+        }
+        
+        // 根据游标构建查询条件
+        if (isForward) {
+            // 解析maxCursor (向下滑，获取历史内容)
+            Map<String, Object> maxCursorValues = CursorUtils.decodeCursor(maxCursor);
+            if (maxCursorValues != null) {
+                final Date forwardTimestamp = (Date) maxCursorValues.get("timestamp");
+                final Integer forwardId = (Integer) maxCursorValues.get("id");
+                
+                // 构建查询条件：获取比当前游标更早的内容
+                if (forwardTimestamp != null && forwardId != null) {
+                    // 时间相同时按ID降序，时间比游标早或时间相同但ID更小
+                    queryWrapper.and(w -> w
+                            .lt(Jobs::getCreatedAt, forwardTimestamp)
+                            .or(o -> o
+                                    .eq(Jobs::getCreatedAt, forwardTimestamp)
+                                    .lt(Jobs::getId, forwardId)
+                            )
+                    );
+                }
+            }
+            // 按时间降序，同一时间按ID降序
+            queryWrapper.orderByDesc(Jobs::getCreatedAt, Jobs::getId);
+            
+        } else if (isBackward) {
+            // 解析minCursor (向上滑，获取更新内容)
+            Map<String, Object> minCursorValues = CursorUtils.decodeCursor(minCursor);
+            if (minCursorValues != null) {
+                final Date backwardTimestamp = (Date) minCursorValues.get("timestamp");
+                final Integer backwardId = (Integer) minCursorValues.get("id");
+                
+                // 构建查询条件：获取比当前游标更新的内容
+                if (backwardTimestamp != null && backwardId != null) {
+                    // 时间比游标新或时间相同但ID更大
+                    queryWrapper.and(w -> w
+                            .gt(Jobs::getCreatedAt, backwardTimestamp)
+                            .or(o -> o
+                                    .eq(Jobs::getCreatedAt, backwardTimestamp)
+                                    .gt(Jobs::getId, backwardId)
+                            )
+                    );
+                }
+            }
+            // 按时间升序，同一时间按ID升序（获取后需要反转）
+            queryWrapper.orderByAsc(Jobs::getCreatedAt, Jobs::getId);
+            
+        } else {
+            // 没有指定游标，获取最新内容
+            queryWrapper.orderByDesc(Jobs::getCreatedAt, Jobs::getId);
+        }
+        
+        // 查询数据
+        Integer limit = request.getPageSize() + 1; // 多查一条用于判断是否有更多数据
+        System.out.println("【getUserPostsWithCursor】实际查询限制数量: " + limit);
+        List<Jobs> jobs = this.list(queryWrapper.last("LIMIT " + limit));
+        System.out.println("【getUserPostsWithCursor】查询到原始记录数: " + jobs.size());
+        
+        // 如果是向后查询，需要反转结果顺序
+        if (isBackward && !jobs.isEmpty()) {
+            Collections.reverse(jobs);
+        }
+        
+        // 判断是否有更多数据
+        boolean hasMore = jobs.size() > request.getPageSize();
+        if (hasMore) {
+            // 移除多查的一条数据
+            jobs.remove(jobs.size() - 1);
+            System.out.println("【getUserPostsWithCursor】移除额外记录后的记录数: " + jobs.size());
+        }
+        
+        // 处理空结果
+        if (jobs.isEmpty()) {
+            return new CursorResponseDto<>(
+                    new ArrayList<>(),
+                    maxCursor, // 保持原游标
+                    minCursor, // 保持原游标
+                    isForward ? hasMore : false,
+                    isBackward ? hasMore : false,
+                    0L
+            );
+        }
+        
+        // 计算下一个游标
+        String nextMaxCursor = null;
+        String nextMinCursor = null;
+        
+        if (!jobs.isEmpty()) {
+            // 获取历史方向的下一个游标（最后一条记录）
+            Jobs lastJob = jobs.get(jobs.size() - 1);
+            nextMaxCursor = CursorUtils.encodeCursor(lastJob.getCreatedAt(), lastJob.getId());
+            
+            // 获取新内容方向的下一个游标（第一条记录）
+            Jobs firstJob = jobs.get(0);
+            nextMinCursor = CursorUtils.encodeCursor(firstJob.getCreatedAt(), firstJob.getId());
+        }
+        
+        // 转换为DTO
+        List<JobDetailOutputDto> dtoList = processJobsForOutput(jobs);
+        
+        long endTime = System.currentTimeMillis();
+        System.out.println("【性能日志】游标分页获取用户职位列表完成 - 耗时: " + (endTime - startTime) + "ms");
+        
+        return new CursorResponseDto<>(
+                dtoList,
+                (!isForward && !isBackward && !jobs.isEmpty()) || (isForward && hasMore) ? nextMaxCursor : maxCursor,
+                (!isForward && !isBackward && !jobs.isEmpty()) || (isBackward && hasMore) ? nextMinCursor : minCursor,
+                isForward ? hasMore : true, // 历史方向是否有更多数据
+                isBackward ? hasMore : false, // 新内容方向是否有更多数据（初始加载时为false，因为已加载最新数据）
+                (long) dtoList.size()
+        );
+    }
+    
+    /**
+     * 使用传统分页获取用户职位
+     */
+    private Page<JobDetailOutputDto> getUserPostsWithTraditionalPaging(JobListInputDto request, Integer userId) {
+        LambdaQueryWrapper<Jobs> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Jobs::getUserId, userId);
+        queryWrapper.orderByDesc(Jobs::getCreatedAt);
+        
+        // 确保使用请求中指定的页面大小，而不是默认值
+        if (request.getPageSize() == null || request.getPageSize() <= 0) {
+            request.setPageSize(4); // 默认每页4个
+        }
+        
+        Page<Jobs> page = new Page<>(request.getPageNum(), request.getPageSize());
+        System.out.println("【性能日志】传统分页获取用户作品 - 请求页码: " + request.getPageNum() + ", 页大小: " + request.getPageSize());
+        
+        Page<Jobs> jobsPage = this.page(page, queryWrapper);
+        
+        // 记录实际查询结果
+        System.out.println("【性能日志】传统分页查询到用户作品 - 记录数: " + jobsPage.getRecords().size() + ", 总记录数: " + jobsPage.getTotal());
+        
+        List<JobDetailOutputDto> records = processJobsForOutput(jobsPage.getRecords());
+        
+        Page<JobDetailOutputDto> result = PageUtil.build(jobsPage, records);
+        
+        return result;
+    }
+    
+    // 切换职位点赞状态
 } 
