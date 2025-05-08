@@ -146,9 +146,11 @@ public class JobH5Controller {
      * 发布职位接口
      */
     @PostMapping("createJob")
-    public R<Boolean> createJob(@Valid @RequestBody CreateJobInputDto request) { //  使用 @Valid 注解开启参数校验
+    public R<JobDetailOutputDto> createJob(@Valid @RequestBody CreateJobInputDto request) { //  使用 @Valid 注解开启参数校验
         Jobs job = jobService.createJob(request);
-        return R.success(Boolean.TRUE);
+        // 转换为包含完整信息的DTO
+        JobDetailOutputDto jobDto = jobService.convertDto(job);
+        return R.success(jobDto);
     }
     @PostMapping("/like")
     @Operation(summary = "点赞", description = "点赞功能")
