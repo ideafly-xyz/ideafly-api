@@ -696,18 +696,14 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     }
 
     /**
-     * 获取用户发布的职位（支持游标分页）
+     * 获取用户发布的职位（仅支持游标分页）
      */
     public Object getUserPosts(JobListInputDto request, Integer userId) {
         System.out.println("【性能日志】获取用户职位列表 - 用户ID: " + userId);
         long startTime = System.currentTimeMillis();
         
-        // 检查是否使用游标分页
-        if (Boolean.TRUE.equals(request.getUseCursor())) {
-            return getUserPostsWithCursor(request, userId);
-        } else {
-            return getUserPostsWithTraditionalPaging(request, userId);
-        }
+        // 强制使用游标分页
+        return getUserPostsWithCursor(request, userId);
     }
     
     /**
@@ -851,34 +847,6 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 isBackward ? hasMore : false, // 新内容方向是否有更多数据（初始加载时为false，因为已加载最新数据）
                 (long) dtoList.size()
         );
-    }
-    
-    /**
-     * 使用传统分页获取用户职位
-     */
-    private Page<JobDetailOutputDto> getUserPostsWithTraditionalPaging(JobListInputDto request, Integer userId) {
-        LambdaQueryWrapper<Jobs> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Jobs::getUserId, userId);
-        queryWrapper.orderByDesc(Jobs::getCreatedAt);
-        
-        // 确保使用请求中指定的页面大小，而不是默认值
-        if (request.getPageSize() == null || request.getPageSize() <= 0) {
-            request.setPageSize(4); // 默认每页4个
-        }
-        
-        Page<Jobs> page = new Page<>(request.getPageNum(), request.getPageSize());
-        System.out.println("【性能日志】传统分页获取用户作品 - 请求页码: " + request.getPageNum() + ", 页大小: " + request.getPageSize());
-        
-        Page<Jobs> jobsPage = this.page(page, queryWrapper);
-        
-        // 记录实际查询结果
-        System.out.println("【性能日志】传统分页查询到用户作品 - 记录数: " + jobsPage.getRecords().size() + ", 总记录数: " + jobsPage.getTotal());
-        
-        List<JobDetailOutputDto> records = processJobsForOutput(jobsPage.getRecords());
-        
-        Page<JobDetailOutputDto> result = PageUtil.build(jobsPage, records);
-        
-        return result;
     }
     
     // 切换职位点赞状态

@@ -125,20 +125,20 @@ public class JobH5Controller {
     }
     
     /**
-     * 获取当前用户自己发布的职位列表
+     * 获取当前用户自己发布的职位列表 (仅支持游标分页)
      */
     @PostMapping("myPosts")
-    @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，支持游标分页")
+    @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，使用游标分页")
     public R<?> getMyPosts(@RequestBody JobListInputDto request) {
         // 确保请求参数合法
         if (request == null) {
             request = new JobListInputDto();
         }
         
-        // 强制使用游标分页，忽略客户端设置
+        // 强制使用游标分页
         request.setUseCursor(true);
         
-        // 设置默认值，但不覆盖客户端已设置的值
+        // 设置默认值
         if (request.getPageNum() == null || request.getPageNum() < 1) {
             request.setPageNum(1);
         }
@@ -156,9 +156,7 @@ public class JobH5Controller {
         
         // 添加请求日志
         System.out.println("【JobH5Controller】获取用户作品列表，用户ID: " + currentUserId + 
-                ", 页码: " + request.getPageNum() + 
-                ", 每页数量: " + request.getPageSize() + 
-                ", 使用游标: " + (Boolean.TRUE.equals(request.getUseCursor()) ? "是" : "否") +
+                ", 页大小: " + request.getPageSize() + 
                 ", 最大游标: " + request.getMaxCursor() +
                 ", 最小游标: " + request.getMinCursor());
         
@@ -173,12 +171,6 @@ public class JobH5Controller {
                     ", 下一个minCursor: " + cursorResult.getNextMinCursor() +
                     ", 是否有更多历史内容: " + cursorResult.getHasMoreHistory() +
                     ", 是否有更多新内容: " + cursorResult.getHasMoreNew());
-        } else if (result instanceof Page) {
-            Page<?> pageResult = (Page<?>) result;
-            System.out.println("【JobH5Controller】获取用户作品列表结果，当前页: " + pageResult.getCurrent() + 
-                    ", 总页数: " + pageResult.getPages() + 
-                    ", 总记录数: " + pageResult.getTotal() + 
-                    ", 本页记录数: " + pageResult.getRecords().size());
         }
         
         return R.success(result);
