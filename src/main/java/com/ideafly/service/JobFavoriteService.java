@@ -308,6 +308,12 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 favoriteMap, 
                 likeMap
             );
+            
+            // 为每个DTO设置游标值，这样前端可以直接使用它来加载更多
+            String cursor = CursorUtils.encodeCursor(job.getCreatedAt(), job.getId());
+            dto.setCursor(cursor);
+            System.out.println("【DTO游标设置】为记录 " + job.getId() + " 设置游标: " + cursor);
+            
             result.add(dto);
         }
         
@@ -316,15 +322,20 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         
         // 更新缓存和状态变量，以便前端可以通过getCachedUserFavorites和getUserFavoritesLoadingState获取
         this._cachedUserFavorites = result;
-        this._userFavoritesMaxCursor = isForward && hasMore ? nextMaxCursor : maxCursor;
-        this._userFavoritesMinCursor = isBackward && hasMore ? nextMinCursor : minCursor;
+        this._userFavoritesMaxCursor = (!isForward && !isBackward && !jobs.isEmpty()) || (isForward && hasMore) ? nextMaxCursor : maxCursor;
+        this._userFavoritesMinCursor = (!isForward && !isBackward && !jobs.isEmpty()) || (isBackward && hasMore) ? nextMinCursor : minCursor;
         this._hasMoreUserFavorites = isForward ? hasMore : true;
         this._hasMoreNewUserFavorites = isBackward ? hasMore : false;
         
+        // 打印游标调试信息
+        System.out.println("【收藏游标】当前设置的游标值 - nextMaxCursor: " + this._userFavoritesMaxCursor + 
+                          ", nextMinCursor: " + this._userFavoritesMinCursor + 
+                          ", 请求方向: " + (isForward ? "前向(历史)" : isBackward ? "后向(新内容)" : "初始加载"));
+        
         return new CursorResponseDto<>(
                 result,
-                isForward && hasMore ? nextMaxCursor : maxCursor,
-                isBackward && hasMore ? nextMinCursor : minCursor,
+                (!isForward && !isBackward && !jobs.isEmpty()) || (isForward && hasMore) ? nextMaxCursor : maxCursor,
+                (!isForward && !isBackward && !jobs.isEmpty()) || (isBackward && hasMore) ? nextMinCursor : minCursor,
                 isForward ? hasMore : true, // 历史方向是否有更多数据
                 isBackward ? hasMore : false, // 新内容方向是否有更多数据（初始加载时为false，因为已加载最新数据）
                 (long) result.size()
@@ -501,6 +512,12 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 favoriteMap, 
                 likeMap
             );
+            
+            // 为每个DTO设置游标值，这样前端可以直接使用它来加载更多
+            String cursor = CursorUtils.encodeCursor(job.getCreatedAt(), job.getId());
+            dto.setCursor(cursor);
+            System.out.println("【DTO游标设置】为记录 " + job.getId() + " 设置游标: " + cursor);
+            
             result.add(dto);
         }
         
