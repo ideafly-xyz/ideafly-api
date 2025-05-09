@@ -53,7 +53,8 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         
         // 1. 查询用户点赞的所有有效职位ID
         long likeQueryStart = System.currentTimeMillis();
-        Page<JobLikes> likePage = new Page<>(request.getPageNum(), request.getPageSize());
+        // 总是使用第1页，因为我们已迁移到游标分页
+        Page<JobLikes> likePage = new Page<>(1, request.getPageSize());
         List<JobLikes> likes = this.lambdaQuery()
             .eq(JobLikes::getUserId, userId)
             .eq(JobLikes::getStatus, 1) // 只查询有效点赞

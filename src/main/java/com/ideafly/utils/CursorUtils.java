@@ -1,5 +1,9 @@
 package com.ideafly.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Date;
 import java.time.LocalDateTime;
@@ -12,6 +16,8 @@ import java.util.Map;
  * 用于生成和解析基于时间戳和ID的复合游标
  */
 public class CursorUtils {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 创建游标字符串
@@ -26,8 +32,19 @@ public class CursorUtils {
             return null;
         }
         
-        String cursorString = timestamp.getTime() + ":" + id;
-        return Base64.getEncoder().encodeToString(cursorString.getBytes());
+        Map<String, Object> cursorMap = new HashMap<>();
+        cursorMap.put("timestamp", timestamp);
+        cursorMap.put("id", id);
+        
+        try {
+            String json = objectMapper.writeValueAsString(cursorMap);
+            String cursor = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+            System.out.println("【CursorUtils】生成游标 - 时间戳: " + timestamp + ", ID: " + id + ", 游标: " + cursor);
+            return cursor;
+        } catch (JsonProcessingException e) {
+            System.err.println("创建游标失败: " + e.getMessage());
+            return null;
+        }
     }
     
     /**
@@ -61,28 +78,66 @@ public class CursorUtils {
         }
         
         try {
-            // 解码base64
+            System.out.println("【CursorUtils.decodeCursor】开始解析游标: " + cursor);
             byte[] decodedBytes = Base64.getDecoder().decode(cursor);
-            String decodedString = new String(decodedBytes);
+            String json = new String(decodedBytes, StandardCharsets.UTF_8);
+            System.out.println("【CursorUtils.decodeCursor】解码后的JSON: " + json);
             
-            // 分割时间戳和ID
-            String[] parts = decodedString.split(":");
-            if (parts.length != 2) {
+            Map<String, Object> cursorMap = objectMapper.readValue(json, Map.class);
+            
+            // 确保游标包含必要的字段
+            if (!cursorMap.containsKey("timestamp") || !cursorMap.containsKey("id")) {
+                System.err.println("【CursorUtils】游标解析错误 - 缺少必要字段: " + json);
                 return null;
             }
             
-            // 解析值
-            long timestamp = Long.parseLong(parts[0]);
-            int id = Integer.parseInt(parts[1]);
+            // 处理Long转Date的问题
+            Object timestampObj = cursorMap.get("timestamp");
+            if (timestampObj instanceof Long) {
+                cursorMap.put("timestamp", new Date((Long) timestampObj));
+                System.out.println("【CursorUtils.decodeCursor】转换Long -> Date: " + cursorMap.get("timestamp"));
+            } else if (timestampObj instanceof Integer) {
+                cursorMap.put("timestamp", new Date(((Integer) timestampObj).longValue()));
+                System.out.println("【CursorUtils.decodeCursor】转换Integer -> Date: " + cursorMap.get("timestamp"));
+            } else if (timestampObj instanceof String) {
+                // 尝试解析字符串格式的时间戳
+                try {
+                    Long timestamp = Long.parseLong((String) timestampObj);
+                    cursorMap.put("timestamp", new Date(timestamp));
+                    System.out.println("【CursorUtils.decodeCursor】转换String -> Date: " + cursorMap.get("timestamp"));
+                } catch (NumberFormatException e) {
+                    System.err.println("【CursorUtils】无法将字符串时间戳转换为Date: " + timestampObj);
+                }
+            }
             
-            // 创建结果Map
-            Map<String, Object> result = new HashMap<>();
-            result.put("timestamp", new Date(timestamp));
-            result.put("id", id);
+            // 确保ID是整数
+            Object idObj = cursorMap.get("id");
+            if (!(idObj instanceof Integer)) {
+                if (idObj instanceof Number) {
+                    cursorMap.put("id", ((Number) idObj).intValue());
+                    System.out.println("【CursorUtils.decodeCursor】转换Number -> Integer: " + cursorMap.get("id"));
+                } else if (idObj instanceof String) {
+                    try {
+                        cursorMap.put("id", Integer.parseInt((String) idObj));
+                        System.out.println("【CursorUtils.decodeCursor】转换String -> Integer: " + cursorMap.get("id"));
+                    } catch (NumberFormatException e) {
+                        System.err.println("【CursorUtils】无法将字符串ID转换为Integer: " + idObj);
+                        return null;
+                    }
+                } else {
+                    System.err.println("【CursorUtils】游标解析错误 - ID不是数字类型: " + idObj);
+                    return null;
+                }
+            }
             
-            return result;
+            System.out.println("【CursorUtils】解析游标成功 - 游标: " + cursor + 
+                               ", 时间戳: " + cursorMap.get("timestamp") + 
+                               ", ID: " + cursorMap.get("id"));
+            
+            return cursorMap;
         } catch (Exception e) {
-            System.out.println("解析游标失败: " + e.getMessage());
+            System.err.println("【CursorUtils】解析游标失败: " + cursor + ", 错误: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }

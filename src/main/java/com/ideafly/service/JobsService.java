@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.lang.reflect.Field;
 
 @Service
 public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
@@ -172,6 +173,18 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             // 获取历史方向的下一个游标（最后一条记录）
             Jobs lastJob = jobs.get(jobs.size() - 1);
             nextMaxCursor = CursorUtils.encodeCursor(lastJob.getCreatedAt(), lastJob.getId());
+            
+            // 确保下一个maxCursor与请求的maxCursor不同
+            if (nextMaxCursor.equals(maxCursor)) {
+                System.out.println("【警告】新生成的maxCursor与请求的相同，可能导致重复数据");
+                // 如果查询条件正确但结果游标相同，说明已经没有更多数据了
+                // 覆盖hasMore标志，防止前端无限请求相同数据
+                hasMore = false;
+                
+                // 输出最老记录信息，便于调试
+                System.out.println("【特殊处理】强制设置hasMore=false，最后一条记录ID: " + lastJob.getId() + 
+                                   ", 创建时间: " + lastJob.getCreatedAt());
+            }
             
             // 获取新内容方向的下一个游标（第一条记录）
             Jobs firstJob = jobs.get(0);
@@ -328,59 +341,47 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         long startTime = System.currentTimeMillis();
         System.out.println("【性能日志】使用传统分页获取职位列表");
         
-        // 1. 确保分页参数合法，固定pageSize为3，保持前后端一致
-        if (request.getPageNum() == null || request.getPageNum() < 1) {
-            request.setPageNum(1);
-        }
-        
-        // 如果pageSize不是3，强制设为3，保持前后端一致
-        if (request.getPageSize() == null || request.getPageSize() != 3) {
-            System.out.println("【兼容处理】客户端pageSize参数不是3，强制设为3，原值: " + request.getPageSize());
+        // 确保页大小合法
+        if (request.getPageSize() == null || request.getPageSize() <= 0) {
             request.setPageSize(3);
         }
         
-        // 2. 构建分页对象并查询数据库
-        long dbQueryStart = System.currentTimeMillis();
-        Page<Jobs> page = PageUtil.<Jobs>build(request);
+        // 构建分页对象（默认第1页）
+        Page<Jobs> page = new Page<>(1, request.getPageSize());
         
-        // 2.1 先查询总记录数，确保分页计算准确
+        // 查询数据库总记录数，确保分页计算准确
         long countStart = System.currentTimeMillis();
         long totalCount = this.lambdaQuery().count();
         long countEnd = System.currentTimeMillis();
         System.out.println("【性能日志】数据库总数查询耗时: " + (countEnd - countStart) + "ms, 总记录数: " + totalCount);
         
-        // 2.2 计算实际的总页数
+        // 计算实际的总页数
         int totalPages = (int) ((totalCount + request.getPageSize() - 1) / request.getPageSize());
         System.out.println("【分页计算】总记录数: " + totalCount + ", 页大小: " + request.getPageSize() + ", 计算的总页数: " + totalPages);
         
-        // 2.3 处理请求页码超出范围的情况
-        if (request.getPageNum() > totalPages && totalPages > 0) {
-            System.out.println("【性能日志】请求的页码 " + request.getPageNum() + " 超出范围(总页数:" + totalPages + ")，返回最后一页");
-            request.setPageNum(totalPages);
-            page = PageUtil.<Jobs>build(request);
-        }
-        
-        // 2.4 执行分页查询
+        // 执行分页查询 (始终从第1页开始，游标分页取代了传统分页)
         Page<Jobs> pageResult = this.lambdaQuery()
                 .orderByDesc(Jobs::getId)
                 .page(page);
         
-        // 2.5 更新总页数，确保一致性
+        // 更新总页数，确保一致性
         pageResult.setTotal(totalCount);
         pageResult.setPages(totalPages);
         
         List<Jobs> jobs = pageResult.getRecords();
         long dbQueryEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】数据库查询耗时: " + (dbQueryEnd - dbQueryStart) + "ms, 记录数: " + jobs.size() + 
-                ", 当前页: " + request.getPageNum() + ", 总页数: " + totalPages);
+        System.out.println("【性能日志】数据库查询耗时: " + (dbQueryEnd - countEnd) + "ms, 记录数: " + jobs.size() + 
+                ", 当前页: 1, 总页数: " + totalPages);
         
         if (jobs.isEmpty()) {
             System.out.println("【性能日志】职位列表为空，直接返回");
-            Page<JobDetailOutputDto> emptyResult = PageUtil.build(pageResult, java.util.Collections.emptyList());
+            Page<JobDetailOutputDto> emptyResult = new Page<>();
             // 设置正确的总页数信息
             emptyResult.setTotal(totalCount);
             emptyResult.setPages(totalPages);
-            emptyResult.setCurrent(request.getPageNum());
+            emptyResult.setCurrent(1);
+            emptyResult.setSize(request.getPageSize());
+            emptyResult.setRecords(Collections.emptyList());
             return emptyResult;
         }
         
@@ -388,10 +389,12 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         List<JobDetailOutputDto> dtoList = processJobsForOutput(jobs);
         
         // 构建分页结果
-        Page<JobDetailOutputDto> result = PageUtil.build(pageResult, dtoList);
+        Page<JobDetailOutputDto> result = new Page<>();
+        result.setRecords(dtoList);
         result.setTotal(totalCount);
         result.setPages(totalPages);
-        result.setCurrent(request.getPageNum());
+        result.setCurrent(1);
+        result.setSize(request.getPageSize());
         
         long endTime = System.currentTimeMillis();
         System.out.println("【性能日志】传统分页获取职位列表完成 - 耗时: " + (endTime - startTime) + "ms");
@@ -577,7 +580,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
      * @return 关注用户的帖子列表（分页）
      */
     public Page<JobDetailOutputDto> getFollowingUserJobs(JobListInputDto request) {
-        System.out.println("【性能日志】开始获取关注用户帖子 - 页码:" + request.getPageNum() + ", 页大小:" + request.getPageSize());
+        System.out.println("【性能日志】开始获取关注用户帖子 - 页大小:" + request.getPageSize());
         long startTime = System.currentTimeMillis();
         
         // 获取当前用户ID
@@ -587,8 +590,8 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             throw new IllegalArgumentException("用户未登录");
         }
         
-        // 创建分页对象
-        Page<Jobs> page = PageUtil.<Jobs>build(request);
+        // 创建分页对象（固定使用第1页）
+        Page<Jobs> page = new Page<>(1, request.getPageSize());
         
         try {
             // 获取当前用户关注的用户ID列表
@@ -597,7 +600,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             // 如果没有关注任何用户，返回空结果
             if (CollUtil.isEmpty(followingUserIds)) {
                 System.out.println("【性能日志】用户未关注任何人，返回空结果");
-                return PageUtil.empty(page);
+                return new Page<>();
             }
             
             System.out.println("【性能日志】用户关注了 " + followingUserIds.size() + " 个用户");
@@ -612,7 +615,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             System.out.println("【性能日志】查询到 " + jobs.size() + " 条关注用户的帖子");
             
             if (jobs.isEmpty()) {
-                return PageUtil.empty(page);
+                return new Page<>();
             }
             
             // 批量获取所有用户ID
@@ -681,13 +684,17 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 .collect(Collectors.toList());
             
             // 构建分页结果
-            Page<JobDetailOutputDto> result = PageUtil.<JobDetailOutputDto>build(jobsPage, dtoList);
+            Page<JobDetailOutputDto> result = new Page<>();
+            result.setRecords(dtoList);
+            result.setTotal(jobsPage.getTotal());
+            result.setPages(jobsPage.getPages());
+            result.setCurrent(1);
+            result.setSize(request.getPageSize());
             
             long endTime = System.currentTimeMillis();
             System.out.println("【性能日志】获取关注用户帖子完成 - 耗时:" + (endTime - startTime) + "ms, 记录数:" + dtoList.size());
             
             return result;
-            
         } catch (Exception e) {
             System.out.println("【性能日志】获取关注用户帖子异常: " + e.getMessage());
             e.printStackTrace();
@@ -703,7 +710,29 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         long startTime = System.currentTimeMillis();
         
         // 强制使用游标分页
-        return getUserPostsWithCursor(request, userId);
+        request.setUseCursor(true);
+        
+        // 记录原始游标参数，便于调试
+        String originalMaxCursor = request.getMaxCursor();
+        System.out.println("【getUserPosts】原始maxCursor: " + originalMaxCursor);
+        
+        // 调用游标分页方法
+        CursorResponseDto<JobDetailOutputDto> result = getUserPostsWithCursor(request, userId);
+        
+        // 如果结果为空且之前有指定maxCursor，可能是格式问题，进行特殊处理
+        if (result.getRecords().isEmpty() && originalMaxCursor != null) {
+            System.out.println("【特殊处理】使用游标查询返回空结果，尝试重新查询最新内容");
+            
+            // 清除游标参数，获取最新内容
+            request.setMaxCursor(null);
+            request.setMinCursor(null);
+            result = getUserPostsWithCursor(request, userId);
+        }
+        
+        long endTime = System.currentTimeMillis();
+        System.out.println("【性能日志】获取用户职位列表完成 - 总耗时: " + (endTime - startTime) + "ms");
+        
+        return result;
     }
     
     /**
@@ -738,17 +767,22 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             isBackward = false;
         }
         
+        // 保存解析后的游标值，用于后续处理
+        Map<String, Object> maxCursorValues = null;
+        Map<String, Object> minCursorValues = null;
+        
         // 根据游标构建查询条件
         if (isForward) {
-            // 解析maxCursor (向下滑，获取历史内容)
-            Map<String, Object> maxCursorValues = CursorUtils.decodeCursor(maxCursor);
+            // 解析maxCursor (向下滑动，获取历史内容)
+            maxCursorValues = CursorUtils.decodeCursor(maxCursor);
+            
             if (maxCursorValues != null) {
                 final Date forwardTimestamp = (Date) maxCursorValues.get("timestamp");
                 final Integer forwardId = (Integer) maxCursorValues.get("id");
                 
                 // 构建查询条件：获取比当前游标更早的内容
                 if (forwardTimestamp != null && forwardId != null) {
-                    // 时间相同时按ID降序，时间比游标早或时间相同但ID更小
+                    // 添加排除当前游标指向的记录自身的条件
                     queryWrapper.and(w -> w
                             .lt(Jobs::getCreatedAt, forwardTimestamp)
                             .or(o -> o
@@ -756,47 +790,48 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                                     .lt(Jobs::getId, forwardId)
                             )
                     );
+                    
+                    System.out.println("【查询条件】历史方向: 时间 < " + forwardTimestamp + " 或 (时间 = " + forwardTimestamp + " 且 ID < " + forwardId + ")");
+                    
+                    // 打印解析后的游标值用于调试
+                    System.out.println("【游标解析结果】maxCursor: " + maxCursor + 
+                                      " -> timestamp: " + forwardTimestamp + 
+                                      ", id: " + forwardId);
+                } else {
+                    System.out.println("【警告】游标解析错误 - 无法从maxCursor提取timestamp或id: " + maxCursor);
                 }
+            } else {
+                System.out.println("【警告】游标解析失败 - maxCursor无法解码: " + maxCursor);
             }
-            // 按时间降序，同一时间按ID降序
-            queryWrapper.orderByDesc(Jobs::getCreatedAt, Jobs::getId);
-            
-        } else if (isBackward) {
-            // 解析minCursor (向上滑，获取更新内容)
-            Map<String, Object> minCursorValues = CursorUtils.decodeCursor(minCursor);
-            if (minCursorValues != null) {
-                final Date backwardTimestamp = (Date) minCursorValues.get("timestamp");
-                final Integer backwardId = (Integer) minCursorValues.get("id");
-                
-                // 构建查询条件：获取比当前游标更新的内容
-                if (backwardTimestamp != null && backwardId != null) {
-                    // 时间比游标新或时间相同但ID更大
-                    queryWrapper.and(w -> w
-                            .gt(Jobs::getCreatedAt, backwardTimestamp)
-                            .or(o -> o
-                                    .eq(Jobs::getCreatedAt, backwardTimestamp)
-                                    .gt(Jobs::getId, backwardId)
-                            )
-                    );
-                }
-            }
-            // 按时间升序，同一时间按ID升序（获取后需要反转）
-            queryWrapper.orderByAsc(Jobs::getCreatedAt, Jobs::getId);
-            
         } else {
             // 没有指定游标，获取最新内容
-            queryWrapper.orderByDesc(Jobs::getCreatedAt, Jobs::getId);
+            System.out.println("【查询条件】首次加载，获取最新内容");
         }
         
-        // 查询数据
-        Integer limit = request.getPageSize() + 1; // 多查一条用于判断是否有更多数据
+        // 保持创建时间和ID的双重排序，确保游标工作正常
+        queryWrapper.orderByDesc(Jobs::getCreatedAt, Jobs::getId);
+        
+        // 多查询一条用于判断是否还有更多数据
+        int limit = request.getPageSize() + 1;
         System.out.println("【getUserPostsWithCursor】实际查询限制数量: " + limit);
+        
+        // 打印最终SQL，确保条件正确添加
+        String finalSql = queryWrapper.getCustomSqlSegment() + " LIMIT " + limit;
+        System.out.println("【最终SQL条件】" + finalSql);
+        
+        // 执行查询
         List<Jobs> jobs = this.list(queryWrapper.last("LIMIT " + limit));
+        
         System.out.println("【getUserPostsWithCursor】查询到原始记录数: " + jobs.size());
         
-        // 如果是向后查询，需要反转结果顺序
-        if (isBackward && !jobs.isEmpty()) {
-            Collections.reverse(jobs);
+        // 记录查询结果中的所有ID，用于调试
+        if (!jobs.isEmpty()) {
+            String resultIds = jobs.stream()
+                .map(job -> job.getId().toString())
+                .collect(Collectors.joining(", "));
+            System.out.println("【查询结果】职位ID列表: " + resultIds);
+        } else {
+            System.out.println("【查询结果】没有匹配的记录");
         }
         
         // 判断是否有更多数据
@@ -809,12 +844,13 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         
         // 处理空结果
         if (jobs.isEmpty()) {
+            System.out.println("【警告】查询结果为空，返回空响应");
             return new CursorResponseDto<>(
                     new ArrayList<>(),
                     maxCursor, // 保持原游标
                     minCursor, // 保持原游标
-                    isForward ? hasMore : false,
-                    isBackward ? hasMore : false,
+                    false,     // 如果结果为空，则没有更多数据
+                    false,
                     0L
             );
         }
@@ -823,30 +859,69 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         String nextMaxCursor = null;
         String nextMinCursor = null;
         
-        if (!jobs.isEmpty()) {
-            // 获取历史方向的下一个游标（最后一条记录）
-            Jobs lastJob = jobs.get(jobs.size() - 1);
-            nextMaxCursor = CursorUtils.encodeCursor(lastJob.getCreatedAt(), lastJob.getId());
+        // 获取历史方向的下一个游标（最后一条记录）
+        Jobs lastJob = jobs.get(jobs.size() - 1);
+        nextMaxCursor = CursorUtils.encodeCursor(lastJob.getCreatedAt(), lastJob.getId());
+        System.out.println("【游标生成】nextMaxCursor已生成 - 基于最后一条记录: ID=" + lastJob.getId() + 
+                          ", 创建时间=" + lastJob.getCreatedAt() + ", 生成游标=" + nextMaxCursor);
+        
+        // 获取新内容方向的下一个游标（第一条记录）
+        Jobs firstJob = jobs.get(0);
+        nextMinCursor = CursorUtils.encodeCursor(firstJob.getCreatedAt(), firstJob.getId());
+        System.out.println("【游标生成】nextMinCursor已生成 - 基于第一条记录: ID=" + firstJob.getId() + 
+                          ", 创建时间=" + firstJob.getCreatedAt() + ", 生成游标=" + nextMinCursor);
+        
+        // 检查游标是否正常更新
+        boolean sameAsPrevious = isForward && nextMaxCursor.equals(maxCursor);
+        if (sameAsPrevious) {
+            System.out.println("【严重警告】下一个maxCursor与当前相同，这可能导致无限重复数据！");
+            System.out.println("  - 当前maxCursor: " + maxCursor);
+            System.out.println("  - 计算的nextMaxCursor: " + nextMaxCursor);
+            System.out.println("  - 最后记录ID: " + lastJob.getId() + ", 创建时间: " + lastJob.getCreatedAt());
             
-            // 获取新内容方向的下一个游标（第一条记录）
-            Jobs firstJob = jobs.get(0);
-            nextMinCursor = CursorUtils.encodeCursor(firstJob.getCreatedAt(), firstJob.getId());
+            // 设置没有更多数据，避免前端继续请求
+            hasMore = false;
         }
         
         // 转换为DTO
         List<JobDetailOutputDto> dtoList = processJobsForOutput(jobs);
         
+        // 确保游标被添加到JobDetailOutputDto中
+        for (int i = 0; i < dtoList.size(); i++) {
+            JobDetailOutputDto dto = dtoList.get(i);
+            Jobs job = jobs.get(i);
+            // 将游标添加到DTO中，方便前端使用
+            String itemCursor = CursorUtils.encodeCursor(job.getCreatedAt(), job.getId());
+            dto.setCursor(itemCursor);
+            System.out.println("【DTO游标设置】为记录 " + job.getId() + " 设置游标: " + itemCursor);
+        }
+        
+        // 输出调试信息
+        System.out.println("【返回结果】");
+        System.out.println("  - 记录数量: " + dtoList.size());
+        System.out.println("  - 下一个maxCursor: " + nextMaxCursor);
+        System.out.println("  - 下一个minCursor: " + nextMinCursor);
+        System.out.println("  - 是否与前一个游标相同: " + sameAsPrevious);
+        System.out.println("  - 是否有更多数据: " + hasMore);
+        
         long endTime = System.currentTimeMillis();
         System.out.println("【性能日志】游标分页获取用户职位列表完成 - 耗时: " + (endTime - startTime) + "ms");
         
-        return new CursorResponseDto<>(
+        // 构建返回结果
+        CursorResponseDto<JobDetailOutputDto> response = new CursorResponseDto<>(
                 dtoList,
-                (!isForward && !isBackward && !jobs.isEmpty()) || (isForward && hasMore) ? nextMaxCursor : maxCursor,
-                (!isForward && !isBackward && !jobs.isEmpty()) || (isBackward && hasMore) ? nextMinCursor : minCursor,
-                isForward ? hasMore : true, // 历史方向是否有更多数据
-                isBackward ? hasMore : false, // 新内容方向是否有更多数据（初始加载时为false，因为已加载最新数据）
+                nextMaxCursor,
+                nextMinCursor,
+                hasMore, // 是否有更多历史数据
+                false,   // 是否有更多新数据（目前只支持向下加载更多，所以固定为false）
                 (long) dtoList.size()
         );
+        
+        // 打印最终响应游标
+        System.out.println("【最终响应游标确认】nextMaxCursor=" + response.getNextMaxCursor() + 
+                          ", nextMinCursor=" + response.getNextMinCursor());
+        
+        return response;
     }
     
     // 切换职位点赞状态

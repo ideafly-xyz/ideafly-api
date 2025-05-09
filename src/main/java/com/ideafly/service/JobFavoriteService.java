@@ -48,7 +48,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         
         // 1. 查询用户收藏的所有有效职位ID
         long favoriteQueryStart = System.currentTimeMillis();
-        Page<JobFavorite> favoritePage = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<JobFavorite> favoritePage = new Page<>(1, request.getPageSize());
         List<JobFavorite> favorites = this.lambdaQuery()
             .eq(JobFavorite::getUserId, userId)
             .eq(JobFavorite::getStatus, 1) // 只查询有效收藏

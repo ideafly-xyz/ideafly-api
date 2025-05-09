@@ -45,18 +45,14 @@ public class JobH5Controller {
             request = new JobListInputDto();
         }
         
-        // 设置默认值
-        if (request.getPageNum() == null || request.getPageNum() < 1) {
-            request.setPageNum(1);
-        }
-        
+        // 设置默认页大小
         if (request.getPageSize() == null || request.getPageSize() < 1) {
             request.setPageSize(3);
         }
         
         // 添加日志，方便调试分页问题
-        System.out.println("【JobH5Controller】获取职位列表，页码: " + request.getPageNum() + 
-                ", 每页数量: " + request.getPageSize() + 
+        System.out.println("【JobH5Controller】获取职位列表，" + 
+                "每页数量: " + request.getPageSize() + 
                 ", 使用游标: " + (Boolean.TRUE.equals(request.getUseCursor()) ? "是" : "否") +
                 ", 最大游标: " + request.getMaxCursor() +
                 ", 最小游标: " + request.getMinCursor());
@@ -88,7 +84,6 @@ public class JobH5Controller {
     @GetMapping("list")
     @Operation(summary = "获取职位列表(GET)", description = "通过GET请求获取职位列表，支持传统分页")
     public R<?> getJobListByGet(
-            @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum,
             @RequestParam(value = "pageSize", defaultValue = "3") Integer pageSize,
             @RequestParam(value = "useCursor", required = false) Boolean useCursor,
             @RequestParam(value = "maxCursor", required = false) String maxCursor,
@@ -96,7 +91,6 @@ public class JobH5Controller {
         
         // 构建请求DTO
         JobListInputDto request = new JobListInputDto();
-        request.setPageNum(pageNum);
         request.setPageSize(pageSize);
         request.setUseCursor(useCursor);
         request.setMaxCursor(maxCursor);
@@ -128,49 +122,64 @@ public class JobH5Controller {
      * 获取当前用户自己发布的职位列表 (仅支持游标分页)
      */
     @PostMapping("myPosts")
-    @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，使用游标分页")
+    @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，强制使用游标分页")
     public R<?> getMyPosts(@RequestBody JobListInputDto request) {
-        // 确保请求参数合法
-        if (request == null) {
-            request = new JobListInputDto();
-        }
-        
-        // 强制使用游标分页
-        request.setUseCursor(true);
-        
-        // 设置默认值
-        if (request.getPageNum() == null || request.getPageNum() < 1) {
-            request.setPageNum(1);
-        }
-        
-        // 仅在客户端未指定页面大小时设置默认值
-        if (request.getPageSize() == null || request.getPageSize() < 1) {
-            request.setPageSize(4); // 默认每页4个作品
-        }
-        
         // 获取当前用户ID
-        Integer currentUserId = UserContextHolder.getUid();
-        if (currentUserId == null) {
+        Integer userId = UserContextHolder.getUid();
+        if (userId == null) {
             return R.error("用户未登录");
         }
         
-        // 添加请求日志
-        System.out.println("【JobH5Controller】获取用户作品列表，用户ID: " + currentUserId + 
-                ", 页大小: " + request.getPageSize() + 
-                ", 最大游标: " + request.getMaxCursor() +
-                ", 最小游标: " + request.getMinCursor());
+        // 确保使用游标分页
+        request.setUseCursor(true);
         
-        // 调用服务获取结果
-        Object result = jobService.getUserPosts(request, currentUserId);
+        // 确保页大小合理，如果客户端未指定或值不合理则使用默认值
+        if (request.getPageSize() == null || request.getPageSize() <= 0) {
+            request.setPageSize(4); // 默认每页加载4条作品
+        }
         
-        // 添加结果日志
+        // 打印详细请求日志，用于调试
+        System.out.println("【JobH5Controller】获取用户作品列表详细参数:");
+        System.out.println("  - 用户ID: " + userId);
+        System.out.println("  - 页大小: " + request.getPageSize());
+        System.out.println("  - maxCursor: " + request.getMaxCursor());
+        System.out.println("  - minCursor: " + request.getMinCursor());
+        System.out.println("  - 请求头: " + request);
+        
+        // 检查游标值是否有效
+        if (request.getMaxCursor() != null) {
+            // 验证maxCursor格式是否正确
+            try {
+                String cursor = request.getMaxCursor();
+                byte[] decodedBytes = java.util.Base64.getDecoder().decode(cursor);
+                String jsonStr = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
+                System.out.println("【游标检查】maxCursor解码后: " + jsonStr);
+            } catch (Exception e) {
+                System.out.println("【警告】无效的maxCursor格式: " + request.getMaxCursor() + ", 错误: " + e.getMessage());
+                // 如果解析失败，清除游标值避免后续查询出错
+                request.setMaxCursor(null);
+            }
+        } else {
+            System.out.println("【警告】maxCursor为null，如果是首次加载则正常，如果是上拉加载更多则表示客户端未正确传递上一次的nextMaxCursor");
+        }
+        
+        // 获取用户发布的职位（专用游标分页方法）
+        Object result = jobService.getUserPosts(request, userId);
+        
+        // 打印响应日志
         if (result instanceof CursorResponseDto) {
-            CursorResponseDto<?> cursorResult = (CursorResponseDto<?>) result;
-            System.out.println("【JobH5Controller】获取用户作品列表结果，记录数: " + cursorResult.getRecords().size() + 
-                    ", 下一个maxCursor: " + cursorResult.getNextMaxCursor() +
-                    ", 下一个minCursor: " + cursorResult.getNextMinCursor() +
-                    ", 是否有更多历史内容: " + cursorResult.getHasMoreHistory() +
-                    ", 是否有更多新内容: " + cursorResult.getHasMoreNew());
+            CursorResponseDto<?> cursorResponse = (CursorResponseDto<?>) result;
+            System.out.println("【JobH5Controller】获取用户作品列表结果:");
+            System.out.println("  - 记录数: " + cursorResponse.getRecords().size());
+            System.out.println("  - 下一个maxCursor: " + cursorResponse.getNextMaxCursor());
+            System.out.println("  - 下一个minCursor: " + cursorResponse.getNextMinCursor());
+            System.out.println("  - 是否有更多历史: " + cursorResponse.getHasMoreHistory());
+            System.out.println("  - 是否有更多新内容: " + cursorResponse.getHasMoreNew());
+            
+            // 检查返回的nextMaxCursor是否为null或为空
+            if (cursorResponse.getNextMaxCursor() == null || cursorResponse.getNextMaxCursor().isEmpty()) {
+                System.out.println("【严重警告】返回的nextMaxCursor为null或空，这将导致前端无法正确加载下一页数据");
+            }
         }
         
         return R.success(result);
@@ -182,12 +191,10 @@ public class JobH5Controller {
     @GetMapping("following")
     @Operation(summary = "获取关注用户帖子", description = "获取当前用户关注的人发布的帖子")
     public R<Page<JobDetailOutputDto>> getFollowingUserJobs(
-            @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum,
             @RequestParam(value = "pageSize", defaultValue = "20") Integer pageSize) {
         
         // 创建请求DTO
         JobListInputDto request = new JobListInputDto();
-        request.setPageNum(pageNum);
         request.setPageSize(pageSize);
         
         // 调用新的服务方法获取关注用户的帖子

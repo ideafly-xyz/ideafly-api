@@ -31,7 +31,16 @@ public class PageUtil {
     }
 
     public static <T> Page<T> build(PageBaseInputDto req) {
-        Page<T> page = new Page<>(req.getPageNum(), req.getPageSize());
+        // 获取页容量，并确保它至少为1
+        Integer pageSize = 0; // 默认值
+        // JobListInputDto继承了PageBaseInputDto，可以通过instanceof判断
+        if (req instanceof com.ideafly.dto.job.JobListInputDto) {
+            com.ideafly.dto.job.JobListInputDto jobReq = (com.ideafly.dto.job.JobListInputDto) req;
+            pageSize = jobReq.getPageSize();
+        }
+    
+        
+        Page<T> page = new Page<>(1, pageSize);
         String orderColumn = req.getOrderColumn();
         if (StrUtil.isBlank(orderColumn)) {
             orderColumn = "id";
