@@ -278,6 +278,13 @@ public class JobH5Controller {
     }
     
     @NoAuth
+    @PostMapping("commentsByCursor")
+    @Operation(summary = "获取评论列表(游标分页)", description = "使用游标分页获取评论列表")
+    public R<JobCommentCursorDto> getCommentsByCursor(@RequestBody JobCommentPageDto request) {
+        return R.success(jobCommentsService.getCommentsByCursor(request));
+    }
+
+    @NoAuth
     @GetMapping("commentsCount")
     public R<Integer> getCommentsCount(@RequestParam(name = "job_id") Integer jobId) {
         return R.success(jobCommentsService.getJobCommentsCount(jobId));
