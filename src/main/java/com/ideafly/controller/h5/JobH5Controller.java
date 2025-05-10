@@ -271,11 +271,6 @@ public class JobH5Controller {
         jobCommentsService.addComment(request);
         return R.success(Boolean.TRUE);
     }
-    @NoAuth
-    @GetMapping("getComment")
-    public R<List<JobComments>> getComment(@RequestParam(name = "job_id") Integer jobId) { //  使用 @Valid 注解开启参数校验
-        return R.success(jobCommentsService.getCommentTreeByJobId(jobId));
-    }
     
     @NoAuth
     @PostMapping("commentsByCursor")
