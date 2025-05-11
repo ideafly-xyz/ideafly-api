@@ -41,7 +41,7 @@ public class WebLogAspect {
     
     // 不记录请求参数的接口
     private static final String[] NO_PARAM_LOGGING_PATHS = {
-        "/api/jobs/getComment",
+        "/api/comments/list",
         "/api/jobs/list"
     };
     

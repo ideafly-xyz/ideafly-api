@@ -266,22 +266,4 @@ public class JobH5Controller {
         jobFavoriteService.addOrRemoveFavorite(request);
         return R.success(Boolean.TRUE);
     }
-    @PostMapping("comment")
-    public R<Boolean> comment(@Valid @RequestBody JobCommentInputDto request) { //  使用 @Valid 注解开启参数校验
-        jobCommentsService.addComment(request);
-        return R.success(Boolean.TRUE);
-    }
-    
-    @NoAuth
-    @PostMapping("commentsByCursor")
-    @Operation(summary = "获取评论列表(游标分页)", description = "使用游标分页获取评论列表")
-    public R<JobCommentCursorDto> getCommentsByCursor(@RequestBody JobCommentPageDto request) {
-        return R.success(jobCommentsService.getCommentsByCursor(request));
-    }
-
-    @NoAuth
-    @GetMapping("commentsCount")
-    public R<Integer> getCommentsCount(@RequestParam(name = "job_id") Integer jobId) {
-        return R.success(jobCommentsService.getJobCommentsCount(jobId));
-    }
 }
