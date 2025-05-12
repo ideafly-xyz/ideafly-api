@@ -26,7 +26,7 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
     private JobsService jobsService;
 
     // 默认的评论页大小
-    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int DEFAULT_PAGE_SIZE = 7;
     // 游标格式
     private static final DateTimeFormatter CURSOR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
