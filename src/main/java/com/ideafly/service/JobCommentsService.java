@@ -10,6 +10,7 @@ import com.ideafly.dto.job.JobCommentPageDto;
 import com.ideafly.mapper.JobCommentsMapper;
 import com.ideafly.model.JobComments;
 import com.ideafly.model.Users;
+import com.ideafly.utils.CursorUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -27,7 +28,7 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
 
     // 默认的评论页大小
     private static final int DEFAULT_PAGE_SIZE = 7;
-    // 游标格式
+    // 游标格式 - 仅用于日志记录
     private static final DateTimeFormatter CURSOR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     public void addComment(JobCommentInputDto dto) {
@@ -101,7 +102,7 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
     }
     
     /**
-     * 使用游标分页查询评论列表
+     * 使用游标分页查询评论列表 - 使用CursorUtils
      * @param request 评论分页请求
      * @return 游标分页结果
      */
@@ -112,7 +113,10 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         
         Integer jobId = request.getJobId();
         Integer pageSize = request.getPageSize() != null ? request.getPageSize() : DEFAULT_PAGE_SIZE;
-        String maxCursor = request.getMaxCursor();
+        String cursor = request.getCursor();
+        
+        System.out.println("===== 评论游标分页请求 =====");
+        System.out.println("请求参数: jobId=" + jobId + ", cursor=" + cursor + ", pageSize=" + pageSize);
         
         // 创建查询条件
         LambdaQueryWrapper<JobComments> query = new LambdaQueryWrapper<>();
@@ -120,28 +124,38 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         query.eq(JobComments::getJobId, jobId)
              .eq(JobComments::getParentCommentId, 0);
         
-        // 如果有最大游标，则查询比该游标更早的评论
-        if (maxCursor != null && !maxCursor.isEmpty()) {
-            try {
-                // 解析游标 - 格式为 commentId:timestamp
-                String[] parts = maxCursor.split(":");
-                if (parts.length == 2) {
-                    int commentId = Integer.parseInt(parts[0]);
-                    String timestamp = parts[1];
-                    LocalDateTime cursorTime = LocalDateTime.parse(timestamp, CURSOR_FORMATTER);
+        // 使用CursorUtils解析游标
+        if (cursor != null && !cursor.isEmpty()) {
+            // 使用CursorUtils解析Base64编码的游标
+            Map<String, Object> cursorMap = CursorUtils.decodeCursor(cursor);
+            if (cursorMap != null) {
+                // 获取游标中的时间戳和ID
+                Date timestampDate = (Date) cursorMap.get("timestamp");
+                Integer cursorId = (Integer) cursorMap.get("id");
+                
+                if (timestampDate != null && cursorId != null) {
+                    // 转换Date为LocalDateTime
+                    LocalDateTime cursorTime = timestampDate.toInstant()
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDateTime();
                     
-                    // 复合条件：创建时间早于等于游标时间的记录，如果时间相同则ID小于游标ID
+                    System.out.println("游标解析结果: ID=" + cursorId + ", 时间=" + cursorTime.format(CURSOR_FORMATTER));
+                    
+                    // 构建复合条件: 获取比游标时间更早的记录，或者相同时间但ID更小的记录
                     query.and(wrapper -> wrapper
                             .lt(JobComments::getCreatedAt, cursorTime)
                             .or(w -> w
                                     .eq(JobComments::getCreatedAt, cursorTime)
-                                    .lt(JobComments::getId, commentId)
+                                    .lt(JobComments::getId, cursorId)
                             )
                     );
+                    
+                    System.out.println("构建查询条件: 时间 < " + cursorTime + " 或 (时间 = " + cursorTime + " 且 ID < " + cursorId + ")");
+                } else {
+                    System.out.println("游标中缺少必要字段: timestamp=" + timestampDate + ", id=" + cursorId);
                 }
-            } catch (Exception e) {
-                System.out.println("解析评论游标失败: " + e.getMessage());
-                // 游标解析失败，忽略游标条件
+            } else {
+                System.out.println("游标解析失败，忽略游标条件: " + cursor);
             }
         }
         
@@ -151,8 +165,19 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         // 限制查询数量
         query.last("LIMIT " + (pageSize + 1)); // 多查询一条用于判断是否还有更多
         
+        System.out.println("最终SQL条件: " + query.getCustomSqlSegment());
+        
         // 执行查询
         List<JobComments> comments = this.list(query);
+        
+        System.out.println("===== 评论游标分页查询结果 =====");
+        System.out.println("获取评论数量: " + comments.size());
+        if (!comments.isEmpty()) {
+            System.out.println("第一条评论ID: " + comments.get(0).getId() + ", 时间: " + comments.get(0).getCreatedAt());
+            if (comments.size() > 1) {
+                System.out.println("最后一条评论ID: " + comments.get(comments.size()-1).getId() + ", 时间: " + comments.get(comments.size()-1).getCreatedAt());
+            }
+        }
         
         // 检查是否有更多评论
         boolean hasMore = comments.size() > pageSize;
@@ -160,24 +185,34 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         // 如果结果超出页大小，移除多余的记录
         if (hasMore) {
             comments = comments.subList(0, pageSize);
+            System.out.println("有更多评论，移除多余评论后数量: " + comments.size());
+        } else {
+            System.out.println("没有更多评论");
         }
         
         // 如果没有评论，直接返回空结果
         if (comments.isEmpty()) {
+            System.out.println("没有找到评论，返回空结果");
             return new JobCommentCursorDto(new ArrayList<>(), null, false);
         }
         
         // 填充子评论和用户信息
         List<JobComments> result = fillCommentDetails(comments, jobId);
         
-        // 构建下一页游标
-        String nextMaxCursor = null;
+        // 使用CursorUtils构建下一页游标
+        String nextCursor = null;
         if (!result.isEmpty() && hasMore) {
             JobComments lastComment = result.get(result.size() - 1);
-            nextMaxCursor = lastComment.getId() + ":" + lastComment.getCreatedAt().format(CURSOR_FORMATTER);
+            nextCursor = CursorUtils.encodeCursor(lastComment.getCreatedAt(), lastComment.getId());
+            System.out.println("构建新游标: " + nextCursor);
+        } else {
+            System.out.println("不构建新游标: 结果为空=" + result.isEmpty() + ", 没有更多评论=" + !hasMore);
         }
         
-        return new JobCommentCursorDto(result, nextMaxCursor, hasMore);
+        System.out.println("===== 评论游标分页返回 =====");
+        System.out.println("返回评论数: " + result.size() + ", nextCursor: " + nextCursor + ", hasMore: " + hasMore);
+        
+        return new JobCommentCursorDto(result, nextCursor, hasMore);
     }
     
     /**

@@ -13,15 +13,15 @@ public class JobCommentCursorDto {
     @Schema(description = "评论列表")
     private List<JobComments> records;
     
-    @Schema(description = "下一页的最大游标值")
-    private String nextMaxCursor;
+    @Schema(description = "下一页的游标值 (Base64编码的复合游标)")
+    private String nextCursor;
     
     @Schema(description = "是否还有更多历史评论")
     private Boolean hasMore;
     
-    public JobCommentCursorDto(List<JobComments> records, String nextMaxCursor, Boolean hasMore) {
+    public JobCommentCursorDto(List<JobComments> records, String nextCursor, Boolean hasMore) {
         this.records = records;
-        this.nextMaxCursor = nextMaxCursor;
+        this.nextCursor = nextCursor;
         this.hasMore = hasMore;
     }
 } 

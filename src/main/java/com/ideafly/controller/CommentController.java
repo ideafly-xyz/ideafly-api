@@ -32,7 +32,17 @@ public class CommentController {
     @PostMapping("list")
     @Operation(summary = "获取评论列表(游标分页)", description = "使用游标分页获取评论列表")
     public R<JobCommentCursorDto> getCommentsByCursor(@RequestBody JobCommentPageDto request) {
-        return R.success(jobCommentsService.getCommentsByCursor(request));
+        System.out.println("===== 评论列表请求 =====");
+        System.out.println("请求参数: " + request);
+        
+        JobCommentCursorDto result = jobCommentsService.getCommentsByCursor(request);
+        
+        System.out.println("===== 评论列表响应 =====");
+        System.out.println("响应结果: 评论数=" + (result.getRecords() != null ? result.getRecords().size() : 0) + 
+                           ", nextCursor=" + result.getNextCursor() + 
+                           ", hasMore=" + result.getHasMore());
+        
+        return R.success(result);
     }
 
     @NoAuth
