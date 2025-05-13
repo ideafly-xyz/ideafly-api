@@ -37,16 +37,18 @@ CREATE TABLE `jobs` (
                         INDEX `idx_created_at` (`created_at`) COMMENT '用于游标分页的索引'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='作品信息表';
 
-CREATE TABLE `job_comments` (
+CREATE TABLE `post_comments` (
                                 `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '评论ID',
                                 `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
                                 `user_id` INT UNSIGNED NOT NULL COMMENT '评论用户ID (关联用户表)',
-                                `parent_comment_id` INT UNSIGNED COMMENT '父级评论ID (用于实现评论回复)',
+                                `parent_comment_id` INT UNSIGNED COMMENT '父级评论ID (用于实现评论树结构)',
+                                `reply_to_comment_id` INT UNSIGNED COMMENT '回复的评论ID (标识回复关系)',
                                 `content` TEXT NOT NULL COMMENT '评论内容',
                                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                                 INDEX `idx_job_id` (`job_id`),
                                 INDEX `idx_user_id` (`user_id`),
-                                INDEX `idx_parent_comment_id` (`parent_comment_id`)
+                                INDEX `idx_parent_comment_id` (`parent_comment_id`),
+                                INDEX `idx_reply_to_comment_id` (`reply_to_comment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位评论表';
 
 CREATE TABLE `job_likes` (

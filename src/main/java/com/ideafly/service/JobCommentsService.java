@@ -40,6 +40,11 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
             jobComments.setParentCommentId(0);
         }
         
+        // 如果 replyToCommentId 为 null 且是子评论，则将其设置为父评论ID
+        if (jobComments.getReplyToCommentId() == null && jobComments.getParentCommentId() > 0) {
+            jobComments.setReplyToCommentId(jobComments.getParentCommentId());
+        }
+        
         this.save(jobComments);
     }
 
@@ -217,6 +222,7 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
     
     /**
      * 填充评论的详细信息，包括子评论和用户信息
+     * 增强版：为子评论添加回复用户信息
      */
     private List<JobComments> fillCommentDetails(List<JobComments> parentComments, Integer jobId) {
         if (parentComments.isEmpty()) {
@@ -240,8 +246,15 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
                 
         // 收集所有评论的用户ID (包括父评论和子评论)
         Set<Integer> allUserIds = new HashSet<>();
+        // 收集所有回复评论的ID
+        Set<Integer> allReplyToCommentIds = new HashSet<>();
         parentComments.forEach(c -> allUserIds.add(c.getUserId()));
-        childComments.forEach(c -> allUserIds.add(c.getUserId()));
+        childComments.forEach(c -> {
+            allUserIds.add(c.getUserId());
+            if (c.getReplyToCommentId() != null && c.getReplyToCommentId() > 0) {
+                allReplyToCommentIds.add(c.getReplyToCommentId());
+            }
+        });
         
         // 查询所有用户信息
         Map<Integer, Users> usersMap = new HashMap<>();
@@ -251,6 +264,16 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
                     .list()
                     .stream()
                     .collect(Collectors.toMap(Users::getId, user -> user));
+        }
+        
+        // 查询回复评论的信息
+        Map<Integer, JobComments> replyCommentMap = new HashMap<>();
+        if (!allReplyToCommentIds.isEmpty()) {
+            replyCommentMap = this.lambdaQuery()
+                    .in(JobComments::getId, allReplyToCommentIds)
+                    .list()
+                    .stream()
+                    .collect(Collectors.toMap(JobComments::getId, comment -> comment));
         }
         
         // 为父评论设置用户信息和子评论
@@ -268,8 +291,9 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
             // 设置子评论
             List<JobComments> children = childrenMap.getOrDefault(parent.getId(), new ArrayList<>());
             
-            // 为子评论设置用户信息
+            // 为子评论设置用户信息和回复信息
             for (JobComments child : children) {
+                // 设置评论者信息
                 Users childUser = usersMap.get(child.getUserId());
                 if (childUser != null) {
                     child.setUserName(childUser.getUsername());
@@ -278,9 +302,24 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
                     child.setUserName("未知用户");
                     child.setUserAvatar("");
                 }
+                
+                // 设置被回复者信息
+                if (child.getReplyToCommentId() != null && child.getReplyToCommentId() > 0) {
+                    JobComments replyToComment = replyCommentMap.get(child.getReplyToCommentId());
+                    if (replyToComment != null && replyToComment.getUserId() != null) {
+                        Users replyToUser = usersMap.get(replyToComment.getUserId());
+                        if (replyToUser != null) {
+                            child.setReplyToUserName(replyToUser.getUsername());
+                        }
+                    }
+                }
             }
             
-            parent.setChildren(children);
+            // 清空现有列表并逐个添加子评论
+            parent.getChildren().clear();
+            for (JobComments child : children) {
+                parent.getChildren().add(child);
+            }
         }
         
         return parentComments;
