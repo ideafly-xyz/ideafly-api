@@ -40,9 +40,33 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
             jobComments.setParentCommentId(0);
         }
         
-        // 如果 replyToCommentId 为 null 且是子评论，则将其设置为父评论ID
-        if (jobComments.getReplyToCommentId() == null && jobComments.getParentCommentId() > 0) {
+        // 处理回复关系：确保子评论的 parentCommentId 和 replyToCommentId 正确设置
+        Integer replyToCommentId = jobComments.getReplyToCommentId();
+        if (replyToCommentId != null && replyToCommentId > 0) {
+            // 查找被回复的评论
+            JobComments replyToComment = this.getById(replyToCommentId);
+            if (replyToComment != null) {
+                // 如果回复的是子评论，使用与被回复评论相同的父评论ID
+                if (replyToComment.getParentCommentId() != null && replyToComment.getParentCommentId() > 0) {
+                    // 设置父评论ID为被回复评论的父评论ID
+                    jobComments.setParentCommentId(replyToComment.getParentCommentId());
+                    // 保留replyToCommentId以标识具体回复的是哪条评论
+                    System.out.println("回复子评论: 被回复评论ID=" + replyToCommentId + 
+                                      ", 其父评论ID=" + replyToComment.getParentCommentId() + 
+                                      ", 设置新评论parentCommentId=" + jobComments.getParentCommentId());
+                } else {
+                    // 如果回复的是一级评论，则父评论ID应为该评论的ID
+                    jobComments.setParentCommentId(replyToComment.getId());
+                    System.out.println("回复一级评论: 被回复评论ID=" + replyToCommentId + 
+                                      ", 设置新评论parentCommentId=" + jobComments.getParentCommentId());
+                }
+            }
+        } else if (jobComments.getParentCommentId() > 0) {
+            // 如果只有parentCommentId没有replyToCommentId，将replyToCommentId设置为parentCommentId
+            // 这表示直接回复父评论，而不是父评论中的某个子评论
             jobComments.setReplyToCommentId(jobComments.getParentCommentId());
+            System.out.println("直接回复父评论: parentCommentId=" + jobComments.getParentCommentId() + 
+                              ", 设置replyToCommentId=" + jobComments.getReplyToCommentId());
         }
         
         this.save(jobComments);
