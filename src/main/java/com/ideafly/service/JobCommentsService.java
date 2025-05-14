@@ -262,6 +262,7 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         List<JobComments> childComments = this.lambdaQuery()
                 .eq(JobComments::getJobId, jobId)
                 .in(JobComments::getParentCommentId, parentIds)
+                .orderByDesc(JobComments::getCreatedAt) // 按创建时间降序，最新的在前面
                 .list();
                 
         // 为每个父评论设置子评论
@@ -341,9 +342,8 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
             
             // 清空现有列表并逐个添加子评论
             parent.getChildren().clear();
-            for (JobComments child : children) {
-                parent.getChildren().add(child);
-            }
+            // 已经在查询时按时间排序，直接添加即可
+            parent.getChildren().addAll(children);
         }
         
         return parentComments;
