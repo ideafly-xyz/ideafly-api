@@ -81,4 +81,20 @@ public class CommentController {
     public R<Integer> getCommentsCount(@RequestParam("job_id") Integer jobId) {
         return R.success(jobCommentsService.getJobCommentsCount(jobId));
     }
+    
+    @NoAuth
+    @GetMapping("childrenCount")
+    @Operation(summary = "获取子评论数量", description = "获取某个顶级评论的子评论数量")
+    public R<Integer> getChildrenCount(@RequestParam("job_id") Integer jobId, 
+                                        @RequestParam("parent_id") Integer parentId) {
+        System.out.println("===== 获取子评论数量请求 =====");
+        System.out.println("请求参数: jobId=" + jobId + ", parentId=" + parentId);
+        
+        int childrenCount = jobCommentsService.getChildCommentsCount(jobId, parentId);
+        
+        System.out.println("===== 获取子评论数量响应 =====");
+        System.out.println("响应结果: 子评论数量=" + childrenCount);
+        
+        return R.success(childrenCount);
+    }
 } 

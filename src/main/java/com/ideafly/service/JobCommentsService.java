@@ -535,4 +535,24 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         
         return result;
     }
+
+    /**
+     * 获取子评论数量 - 获取指定父评论的子评论总数
+     * @param jobId 职位ID
+     * @param parentId 父评论ID
+     * @return 子评论数量
+     */
+    public int getChildCommentsCount(Integer jobId, Integer parentId) {
+        System.out.println("获取子评论数量 - jobId: " + jobId + ", parentId: " + parentId);
+        
+        // 统计父评论下的子评论数量
+        int count = this.lambdaQuery()
+                .eq(JobComments::getJobId, jobId)
+                .eq(JobComments::getParentCommentId, parentId)
+                .count().intValue();
+                
+        System.out.println("父评论ID: " + parentId + " 的子评论总数: " + count);
+        
+        return count;
+    }
 }
