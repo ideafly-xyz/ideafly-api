@@ -394,4 +394,145 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         
         return parentComments;
     }
+    
+    /**
+     * 加载更多子评论
+     * @param jobId 职位ID
+     * @param parentId 父评论ID
+     * @param cursor 游标
+     * @return 子评论列表及分页信息
+     */
+    public Map<String, Object> loadMoreChildComments(Integer jobId, Integer parentId, String cursor) {
+        System.out.println("===== 加载更多子评论 =====");
+        System.out.println("参数: jobId=" + jobId + ", parentId=" + parentId + ", cursor=" + cursor);
+        
+        Map<String, Object> result = new HashMap<>();
+        
+        // 设置每次加载子评论的数量
+        final int CHILD_COMMENTS_PAGE_SIZE = 2;
+        
+        // 创建查询条件
+        LambdaQueryWrapper<JobComments> query = new LambdaQueryWrapper<>();
+        query.eq(JobComments::getJobId, jobId)
+             .eq(JobComments::getParentCommentId, parentId);
+        
+        // 使用CursorUtils解析游标
+        if (cursor != null && !cursor.isEmpty()) {
+            Map<String, Object> cursorMap = CursorUtils.decodeCursor(cursor);
+            if (cursorMap != null) {
+                // 获取游标中的时间戳和ID
+                Date timestampDate = (Date) cursorMap.get("timestamp");
+                Integer cursorId = (Integer) cursorMap.get("id");
+                
+                if (timestampDate != null && cursorId != null) {
+                    // 转换Date为LocalDateTime
+                    LocalDateTime cursorTime = timestampDate.toInstant()
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDateTime();
+                    
+                    System.out.println("游标解析结果: ID=" + cursorId + ", 时间=" + cursorTime.format(CURSOR_FORMATTER));
+                    
+                    // 构建复合条件: 获取比游标时间更早的记录，或者相同时间但ID更小的记录
+                    query.and(wrapper -> wrapper
+                            .lt(JobComments::getCreatedAt, cursorTime)
+                            .or(w -> w
+                                    .eq(JobComments::getCreatedAt, cursorTime)
+                                    .lt(JobComments::getId, cursorId)
+                            )
+                    );
+                }
+            }
+        }
+        
+        // 按照创建时间降序，保证最新评论在前
+        query.orderByDesc(JobComments::getCreatedAt, JobComments::getId);
+        
+        // 限制查询数量
+        query.last("LIMIT " + (CHILD_COMMENTS_PAGE_SIZE + 1)); // 多查询一条用于判断是否还有更多
+        
+        // 执行查询
+        List<JobComments> childComments = this.list(query);
+        
+        System.out.println("获取子评论数量: " + childComments.size());
+        
+        // 检查是否有更多子评论
+        boolean hasMoreChildren = childComments.size() > CHILD_COMMENTS_PAGE_SIZE;
+        
+        // 如果有更多子评论，移除多余的一条
+        String nextCursor = null;
+        if (hasMoreChildren) {
+            JobComments lastChild = childComments.get(CHILD_COMMENTS_PAGE_SIZE);
+            nextCursor = CursorUtils.encodeCursor(lastChild.getCreatedAt(), lastChild.getId());
+            
+            // 移除多余的记录
+            childComments = childComments.subList(0, CHILD_COMMENTS_PAGE_SIZE);
+        }
+        
+        // 收集用户ID
+        Set<Integer> userIds = childComments.stream()
+                .map(JobComments::getUserId)
+                .collect(Collectors.toSet());
+        
+        // 收集回复评论ID
+        Set<Integer> replyToCommentIds = childComments.stream()
+                .filter(c -> c.getReplyToCommentId() != null && c.getReplyToCommentId() > 0)
+                .map(JobComments::getReplyToCommentId)
+                .collect(Collectors.toSet());
+        
+        // 查询用户信息
+        Map<Integer, Users> usersMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            usersMap = usersService.lambdaQuery()
+                    .in(Users::getId, userIds)
+                    .list()
+                    .stream()
+                    .collect(Collectors.toMap(Users::getId, user -> user));
+        }
+        
+        // 查询回复评论信息
+        Map<Integer, JobComments> commentsMap = new HashMap<>();
+        if (!replyToCommentIds.isEmpty()) {
+            this.lambdaQuery()
+                    .in(JobComments::getId, replyToCommentIds)
+                    .list()
+                    .forEach(c -> commentsMap.put(c.getId(), c));
+        }
+        
+        // 填充子评论的用户信息和回复信息
+        for (JobComments child : childComments) {
+            // 设置用户信息
+            Users user = usersMap.get(child.getUserId());
+            if (user != null) {
+                child.setUserName(user.getUsername());
+                child.setUserAvatar(user.getAvatar());
+            } else {
+                child.setUserName("未知用户");
+                child.setUserAvatar("");
+            }
+            
+            // 设置回复用户信息
+            if (child.getReplyToCommentId() != null && child.getReplyToCommentId() > 0 && 
+                !child.getReplyToCommentId().equals(child.getParentCommentId())) {
+                
+                JobComments replyToComment = commentsMap.get(child.getReplyToCommentId());
+                if (replyToComment != null && replyToComment.getUserId() != null) {
+                    Users replyToUser = usersMap.get(replyToComment.getUserId());
+                    if (replyToUser != null) {
+                        child.setReplyToUserName(replyToUser.getUsername());
+                    }
+                }
+            }
+        }
+        
+        // 构建返回结果
+        result.put("children", childComments);
+        result.put("next_cursor", nextCursor);
+        result.put("has_more_children", hasMoreChildren);
+        
+        System.out.println("返回子评论数量: " + childComments.size() + 
+                          ", nextCursor: " + nextCursor + 
+                          ", hasMore: " + hasMoreChildren);
+        
+        return result;
+    }
 }
