@@ -209,7 +209,7 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         LambdaQueryWrapper<ChildComment> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ChildComment::getJobId, jobId);
         queryWrapper.eq(ChildComment::getParentCommentId, parentId);
-        queryWrapper.orderByAsc(ChildComment::getCreatedAt); // 按时间正序排列
+        queryWrapper.orderByDesc(ChildComment::getCreatedAt, ChildComment::getId); // 按时间降序排列，最新的在最前面
         queryWrapper.last("LIMIT " + limit);
         
         List<ChildComment> childComments = childCommentMapper.selectList(queryWrapper);
@@ -264,28 +264,28 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                     cursorTime = initialCursorTime;
                 }
                 
-                // 使用复合条件：创建时间大于游标时间，或者时间相同但ID更大
+                // 使用复合条件：创建时间小于游标时间，或者时间相同但ID更小（降序查询）
                 queryWrapper.and(w -> w
-                    .gt(ChildComment::getCreatedAt, cursorTime)
+                    .lt(ChildComment::getCreatedAt, cursorTime)
                     .or(o -> o
                         .eq(ChildComment::getCreatedAt, cursorTime)
-                        .gt(ChildComment::getId, id)
+                        .lt(ChildComment::getId, id)
                     )
                 );
                 
-                System.out.println("子评论查询条件: 创建时间 > " + CURSOR_FORMATTER.format(cursorTime) + 
+                System.out.println("子评论查询条件: 创建时间 < " + CURSOR_FORMATTER.format(cursorTime) + 
                                " 或 (创建时间 = " + CURSOR_FORMATTER.format(cursorTime) + 
-                               " 且 ID > " + id + ")");
+                               " 且 ID < " + id + ")");
             } catch (Exception e) {
                 System.out.println("子评论游标解析失败: " + e.getMessage());
                 e.printStackTrace();
             }
         } else {
-            System.out.println("无游标，查询最早子评论");
+            System.out.println("无游标，查询最新子评论");
         }
         
         // 排序并限制结果数量
-        queryWrapper.orderByAsc(ChildComment::getCreatedAt, ChildComment::getId);
+        queryWrapper.orderByDesc(ChildComment::getCreatedAt, ChildComment::getId); // 按时间降序排列，最新的在最前面
         queryWrapper.last("LIMIT " + (DEFAULT_CHILD_COMMENTS_PAGE_SIZE + 1)); // 多查询一条用于判断是否还有更多
         
         // 执行查询
