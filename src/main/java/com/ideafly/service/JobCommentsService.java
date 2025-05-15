@@ -246,7 +246,7 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
     
     /**
      * 填充评论的详细信息，包括子评论和用户信息
-     * 增强版：为子评论添加回复用户信息
+     * 增强版：为子评论添加回复用户信息，确保是平铺结构
      */
     private List<JobComments> fillCommentDetails(List<JobComments> parentComments, Integer jobId) {
         if (parentComments.isEmpty()) {
@@ -292,13 +292,16 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
         }
         
         // 查询回复评论的信息
-        Map<Integer, JobComments> replyCommentMap = new HashMap<>();
-        if (!allReplyToCommentIds.isEmpty()) {
-            replyCommentMap = this.lambdaQuery()
-                    .in(JobComments::getId, allReplyToCommentIds)
-                    .list()
-                    .stream()
-                    .collect(Collectors.toMap(JobComments::getId, comment -> comment));
+        Map<Integer, JobComments> allCommentsMap = new HashMap<>();
+        
+        // 先将父评论加入映射
+        for (JobComments parent : parentComments) {
+            allCommentsMap.put(parent.getId(), parent);
+        }
+        
+        // 再将子评论加入映射
+        for (JobComments child : childComments) {
+            allCommentsMap.put(child.getId(), child);
         }
         
         // 为父评论设置用户信息和子评论
@@ -328,9 +331,11 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
                     child.setUserAvatar("");
                 }
                 
-                // 设置被回复者信息
-                if (child.getReplyToCommentId() != null && child.getReplyToCommentId() > 0) {
-                    JobComments replyToComment = replyCommentMap.get(child.getReplyToCommentId());
+                // 设置被回复者信息 - 只有当回复另一个子评论时才设置回复用户名
+                if (child.getReplyToCommentId() != null && child.getReplyToCommentId() > 0 && 
+                    child.getParentCommentId() != child.getReplyToCommentId()) {
+                    
+                    JobComments replyToComment = allCommentsMap.get(child.getReplyToCommentId());
                     if (replyToComment != null && replyToComment.getUserId() != null) {
                         Users replyToUser = usersMap.get(replyToComment.getUserId());
                         if (replyToUser != null) {
