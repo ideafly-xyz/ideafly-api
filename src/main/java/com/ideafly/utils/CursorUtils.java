@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+import java.text.SimpleDateFormat;
 
 /**
  * 游标分页工具类
@@ -79,6 +80,31 @@ public class CursorUtils {
         
         try {
             System.out.println("【CursorUtils.decodeCursor】开始解析游标: " + cursor);
+            
+            // 检查是否是手动构建的老格式游标（ID:timestamp.SSS）
+            if (cursor.contains(":") && !cursor.startsWith("ey")) {
+                System.out.println("【CursorUtils.decodeCursor】检测到手动构建的游标格式，尝试兼容处理");
+                // 尝试兼容处理
+                String[] parts = cursor.split(":");
+                if (parts.length == 2) {
+                    try {
+                        Integer id = Integer.parseInt(parts[0]);
+                        // 将timestamp字符串转换为Date
+                        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+                        Date timestamp = format.parse(parts[1]);
+                        
+                        Map<String, Object> cursorMap = new HashMap<>();
+                        cursorMap.put("timestamp", timestamp);
+                        cursorMap.put("id", id);
+                        
+                        System.out.println("【CursorUtils.decodeCursor】成功解析手动构建的游标: ID=" + id + ", 时间=" + timestamp);
+                        return cursorMap;
+                    } catch (Exception e) {
+                        System.err.println("【CursorUtils.decodeCursor】手动构建的游标解析失败: " + e.getMessage());
+                    }
+                }
+            }
+            
             byte[] decodedBytes = Base64.getDecoder().decode(cursor);
             String json = new String(decodedBytes, StandardCharsets.UTF_8);
             System.out.println("【CursorUtils.decodeCursor】解码后的JSON: " + json);
@@ -93,6 +119,10 @@ public class CursorUtils {
             
             // 处理Long转Date的问题
             Object timestampObj = cursorMap.get("timestamp");
+            System.out.println("【CursorUtils.decodeCursor】时间戳对象类型: " + 
+                             (timestampObj != null ? timestampObj.getClass().getName() : "null") + 
+                             ", 值: " + timestampObj);
+            
             if (timestampObj instanceof Long) {
                 cursorMap.put("timestamp", new Date((Long) timestampObj));
                 System.out.println("【CursorUtils.decodeCursor】转换Long -> Date: " + cursorMap.get("timestamp"));

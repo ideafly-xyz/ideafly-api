@@ -91,27 +91,52 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         queryWrapper.eq(ParentComment::getJobId, jobId);
         queryWrapper.eq(ParentComment::getParentCommentId, 0); // 父评论的parentCommentId为0
         
+        System.out.println("===== 查询条件日志 =====");
+        System.out.println("查询职位ID: " + jobId);
+        
         // 处理游标
         if (cursor != null && !cursor.isEmpty()) {
             try {
-                // 从游标中获取时间戳
+                // 从游标中获取时间戳和ID
                 Map<String, Object> cursorMap = CursorUtils.decodeCursor(cursor);
                 Date timestamp = (Date) cursorMap.get("timestamp");
+                Integer id = (Integer) cursorMap.get("id");
+                
                 LocalDateTime cursorTime = LocalDateTime.ofInstant(timestamp.toInstant(), 
                                                               java.time.ZoneId.systemDefault());
-                queryWrapper.lt(ParentComment::getCreatedAt, cursorTime);
-                System.out.println("游标解析: " + CURSOR_FORMATTER.format(cursorTime));
+                
+                // 使用复合条件：创建时间小于游标时间，或者时间相同但ID小于等于游标ID
+                queryWrapper.and(w -> w
+                    .lt(ParentComment::getCreatedAt, cursorTime)
+                    .or(o -> o
+                        .eq(ParentComment::getCreatedAt, cursorTime)
+                        .lt(ParentComment::getId, id)
+                    )
+                );
+                System.out.println("游标解析: 时间=" + CURSOR_FORMATTER.format(cursorTime) + ", ID=" + id);
+                System.out.println("查询条件: 创建时间 < " + CURSOR_FORMATTER.format(cursorTime) + " 或 (创建时间 = " + CURSOR_FORMATTER.format(cursorTime) + " 且 ID < " + id + ")");
             } catch (Exception e) {
                 System.out.println("游标解析失败: " + e.getMessage());
+                e.printStackTrace();
             }
+        } else {
+            System.out.println("无游标，查询最新评论");
         }
         
         // 排序并限制结果数量
-        queryWrapper.orderByDesc(ParentComment::getCreatedAt);
+        queryWrapper.orderByDesc(ParentComment::getCreatedAt, ParentComment::getId);
         queryWrapper.last("LIMIT " + (pageSize + 1)); // 多查询一条用于判断是否还有更多
         
         // 执行查询
         List<ParentComment> parentComments = this.list(queryWrapper);
+        
+        System.out.println("查询结果: 获取到 " + parentComments.size() + " 条评论");
+        if (!parentComments.isEmpty()) {
+            ParentComment first = parentComments.get(0);
+            ParentComment last = parentComments.get(parentComments.size() - 1);
+            System.out.println("结果范围: 第一条ID=" + first.getId() + ", 时间=" + CURSOR_FORMATTER.format(first.getCreatedAt()) + 
+                              "; 最后一条ID=" + last.getId() + ", 时间=" + CURSOR_FORMATTER.format(last.getCreatedAt()));
+        }
         
         // 处理查询结果
         boolean hasMore = false;
@@ -120,9 +145,13 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         if (parentComments.size() > pageSize) {
             // 如果结果数量大于pageSize，说明还有更多数据
             hasMore = true;
-            ParentComment lastComment = parentComments.get(pageSize);
+            // 使用页面最后一条评论作为游标，而不是下一条评论
+            ParentComment lastComment = parentComments.get(pageSize-1);
             nextCursor = CursorUtils.encodeCursor(lastComment.getCreatedAt(), lastComment.getId());
-            
+            System.out.println("生成下一页游标: ID=" + lastComment.getId() + ", 时间=" + 
+                              CURSOR_FORMATTER.format(lastComment.getCreatedAt()) + 
+                              ", 游标=" + nextCursor);
+                              
             // 移除多余的数据
             parentComments = parentComments.subList(0, pageSize);
         }
@@ -194,27 +223,56 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         queryWrapper.eq(ChildComment::getJobId, jobId);
         queryWrapper.eq(ChildComment::getParentCommentId, parentId);
         
+        System.out.println("===== 子评论查询条件日志 =====");
+        System.out.println("查询职位ID: " + jobId + ", 父评论ID: " + parentId);
+        
         // 处理游标
         if (cursor != null && !cursor.isEmpty()) {
             try {
-                // 从游标中获取时间戳
+                // 从游标中获取时间戳和ID
                 Map<String, Object> cursorMap = CursorUtils.decodeCursor(cursor);
                 Date timestamp = (Date) cursorMap.get("timestamp");
+                Integer id = (Integer) cursorMap.get("id");
+                
                 LocalDateTime cursorTime = LocalDateTime.ofInstant(timestamp.toInstant(), 
                                                              java.time.ZoneId.systemDefault());
-                queryWrapper.gt(ChildComment::getCreatedAt, cursorTime);
-                System.out.println("游标解析: " + CURSOR_FORMATTER.format(cursorTime));
+                
+                // 使用复合条件：创建时间大于游标时间，或者时间相同但ID更大
+                queryWrapper.and(w -> w
+                    .gt(ChildComment::getCreatedAt, cursorTime)
+                    .or(o -> o
+                        .eq(ChildComment::getCreatedAt, cursorTime)
+                        .gt(ChildComment::getId, id)
+                    )
+                );
+                System.out.println("子评论游标解析: 时间=" + CURSOR_FORMATTER.format(cursorTime) + ", ID=" + id);
+                System.out.println("子评论查询条件: 创建时间 > " + CURSOR_FORMATTER.format(cursorTime) + 
+                               " 或 (创建时间 = " + CURSOR_FORMATTER.format(cursorTime) + 
+                               " 且 ID > " + id + ")");
             } catch (Exception e) {
-                System.out.println("游标解析失败: " + e.getMessage());
+                System.out.println("子评论游标解析失败: " + e.getMessage());
+                e.printStackTrace();
             }
+        } else {
+            System.out.println("无游标，查询最早子评论");
         }
         
         // 排序并限制结果数量
-        queryWrapper.orderByAsc(ChildComment::getCreatedAt);
+        queryWrapper.orderByAsc(ChildComment::getCreatedAt, ChildComment::getId);
         queryWrapper.last("LIMIT " + (DEFAULT_CHILD_COMMENTS_PAGE_SIZE + 1)); // 多查询一条用于判断是否还有更多
         
         // 执行查询
         List<ChildComment> childComments = childCommentMapper.selectList(queryWrapper);
+        
+        System.out.println("子评论查询结果: 获取到 " + childComments.size() + " 条子评论");
+        if (!childComments.isEmpty()) {
+            ChildComment first = childComments.get(0);
+            ChildComment last = childComments.get(childComments.size() - 1);
+            System.out.println("子评论结果范围: 第一条ID=" + first.getId() + ", 时间=" + 
+                           CURSOR_FORMATTER.format(first.getCreatedAt()) + 
+                           "; 最后一条ID=" + last.getId() + ", 时间=" + 
+                           CURSOR_FORMATTER.format(last.getCreatedAt()));
+        }
         
         // 处理查询结果
         boolean hasMore = false;
@@ -223,8 +281,12 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         if (childComments.size() > DEFAULT_CHILD_COMMENTS_PAGE_SIZE) {
             // 如果结果数量大于pageSize，说明还有更多数据
             hasMore = true;
-            ChildComment lastComment = childComments.get(DEFAULT_CHILD_COMMENTS_PAGE_SIZE);
+            // 使用当前页最后一条评论作为游标，而不是下一条评论
+            ChildComment lastComment = childComments.get(DEFAULT_CHILD_COMMENTS_PAGE_SIZE-1);
             nextCursor = CursorUtils.encodeCursor(lastComment.getCreatedAt(), lastComment.getId());
+            System.out.println("生成子评论下一页游标: ID=" + lastComment.getId() + ", 时间=" + 
+                            CURSOR_FORMATTER.format(lastComment.getCreatedAt()) + 
+                            ", 游标=" + nextCursor);
             
             // 移除多余的数据
             childComments = childComments.subList(0, DEFAULT_CHILD_COMMENTS_PAGE_SIZE);
@@ -238,9 +300,9 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         
         System.out.println("===== 加载更多子评论响应 =====");
         System.out.println("响应结果: 子评论数=" + childComments.size() + 
-                          ", nextCursor=" + nextCursor + 
-                          ", hasMore=" + hasMore +
-                          ", 总数=" + total);
+                         ", nextCursor=" + nextCursor + 
+                         ", hasMore=" + hasMore +
+                         ", 总数=" + total);
         
         // 返回新的DTO
         return new ChildCommentCursorDto(childComments, nextCursor, hasMore, total);
