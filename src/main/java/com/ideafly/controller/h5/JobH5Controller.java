@@ -6,9 +6,9 @@ import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.job.*;
-import com.ideafly.model.JobComments;
+import com.ideafly.model.PostComments;
 import com.ideafly.model.Jobs;
-import com.ideafly.service.JobCommentsService;
+import com.ideafly.service.PostCommentsService;
 import com.ideafly.service.JobFavoriteService;
 import com.ideafly.service.JobLikesService;
 import com.ideafly.service.JobsService;
@@ -34,7 +34,7 @@ public class JobH5Controller {
     @Resource
     private JobFavoriteService jobFavoriteService;
     @Resource
-    private JobCommentsService jobCommentsService;
+    private PostCommentsService postCommentsService;
     
     @NoAuth
     @PostMapping("list")

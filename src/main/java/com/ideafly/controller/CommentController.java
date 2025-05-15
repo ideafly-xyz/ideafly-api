@@ -6,8 +6,8 @@ import com.ideafly.dto.job.JobCommentCursorDto;
 import com.ideafly.dto.job.JobCommentInputDto;
 import com.ideafly.dto.job.JobCommentPageDto;
 import com.ideafly.dto.job.JobLoadMoreChildrenDto;
-import com.ideafly.model.JobComments;
-import com.ideafly.service.JobCommentsService;
+import com.ideafly.model.PostComments;
+import com.ideafly.service.PostCommentsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
@@ -24,12 +24,12 @@ import java.util.Map;
 public class CommentController {
 
     @Resource
-    private JobCommentsService jobCommentsService;
+    private PostCommentsService postCommentsService;
 
     @PostMapping("add")
     @Operation(summary = "添加评论", description = "添加评论到职位")
     public R<Boolean> comment(@Valid @RequestBody JobCommentInputDto request) {
-        jobCommentsService.addComment(request);
+        postCommentsService.addComment(request);
         return R.success(Boolean.TRUE);
     }
     
@@ -40,7 +40,7 @@ public class CommentController {
         System.out.println("===== 评论列表请求 =====");
         System.out.println("请求参数: " + request);
         
-        JobCommentCursorDto result = jobCommentsService.getCommentsByCursor(request);
+        JobCommentCursorDto result = postCommentsService.getCommentsByCursor(request);
         
         System.out.println("===== 评论列表响应 =====");
         System.out.println("响应结果: 评论数=" + (result.getRecords() != null ? result.getRecords().size() : 0) + 
@@ -60,7 +60,7 @@ public class CommentController {
                           ", cursor=" + request.getCursor());
         
         // 调用服务方法加载更多子评论
-        Map<String, Object> result = jobCommentsService.loadMoreChildComments(
+        Map<String, Object> result = postCommentsService.loadMoreChildComments(
                 request.getJobId(), 
                 request.getParentId(), 
                 request.getCursor()
@@ -79,7 +79,7 @@ public class CommentController {
     @GetMapping("count")
     @Operation(summary = "获取评论数量", description = "获取职位评论数量")
     public R<Integer> getCommentsCount(@RequestParam("job_id") Integer jobId) {
-        return R.success(jobCommentsService.getJobCommentsCount(jobId));
+        return R.success(postCommentsService.getJobCommentsCount(jobId));
     }
     
     @NoAuth
@@ -90,7 +90,7 @@ public class CommentController {
         System.out.println("===== 获取子评论数量请求 =====");
         System.out.println("请求参数: jobId=" + jobId + ", parentId=" + parentId);
         
-        int childrenCount = jobCommentsService.getChildCommentsCount(jobId, parentId);
+        int childrenCount = postCommentsService.getChildCommentsCount(jobId, parentId);
         
         System.out.println("===== 获取子评论数量响应 =====");
         System.out.println("响应结果: 子评论数量=" + childrenCount);

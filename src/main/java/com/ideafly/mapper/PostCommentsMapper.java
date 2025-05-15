@@ -1,9 +1,9 @@
 package com.ideafly.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.ideafly.model.JobComments;
+import com.ideafly.model.PostComments;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface JobCommentsMapper extends BaseMapper<JobComments> {
-}
+public interface PostCommentsMapper extends BaseMapper<PostComments> {
+} 
