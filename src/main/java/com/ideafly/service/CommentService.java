@@ -102,8 +102,22 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                 Date timestamp = (Date) cursorMap.get("timestamp");
                 Integer id = (Integer) cursorMap.get("id");
                 
-                LocalDateTime cursorTime = LocalDateTime.ofInstant(timestamp.toInstant(), 
+                // 转换时间戳
+                LocalDateTime initialCursorTime = LocalDateTime.ofInstant(timestamp.toInstant(), 
                                                               java.time.ZoneId.systemDefault());
+                
+                System.out.println("游标解析: 时间=" + CURSOR_FORMATTER.format(initialCursorTime) + ", ID=" + id);
+                
+                // 检查时间戳是否是未来日期，如果是则使用当前时间
+                LocalDateTime now = LocalDateTime.now();
+                final LocalDateTime cursorTime;
+                if (initialCursorTime.isAfter(now)) {
+                    System.out.println("警告: 检测到未来日期游标 " + CURSOR_FORMATTER.format(initialCursorTime) + 
+                                    "，将使用当前时间: " + CURSOR_FORMATTER.format(now));
+                    cursorTime = now;
+                } else {
+                    cursorTime = initialCursorTime;
+                }
                 
                 // 使用复合条件：创建时间小于游标时间，或者时间相同但ID小于等于游标ID
                 queryWrapper.and(w -> w
@@ -113,7 +127,6 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                         .lt(ParentComment::getId, id)
                     )
                 );
-                System.out.println("游标解析: 时间=" + CURSOR_FORMATTER.format(cursorTime) + ", ID=" + id);
                 System.out.println("查询条件: 创建时间 < " + CURSOR_FORMATTER.format(cursorTime) + " 或 (创建时间 = " + CURSOR_FORMATTER.format(cursorTime) + " 且 ID < " + id + ")");
             } catch (Exception e) {
                 System.out.println("游标解析失败: " + e.getMessage());
@@ -162,11 +175,11 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         // 加载子评论信息
         for (ParentComment parent : parentComments) {
             // 加载子评论数量
-            int childCount = getChildCommentsCount(jobId, parent.getId());
+            int childCount = getChildCommentsCount(parent.getJobId(), parent.getId());
             parent.setChildrenCount(childCount);
             
             // 加载默认显示的子评论列表
-            List<ChildComment> childComments = getTopChildComments(jobId, parent.getId(), DEFAULT_CHILD_COMMENTS_PAGE_SIZE);
+            List<ChildComment> childComments = getTopChildComments(parent.getJobId(), parent.getId(), DEFAULT_CHILD_COMMENTS_PAGE_SIZE);
             parent.setChildren(childComments);
             
             // 设置是否有更多子评论
@@ -234,8 +247,22 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                 Date timestamp = (Date) cursorMap.get("timestamp");
                 Integer id = (Integer) cursorMap.get("id");
                 
-                LocalDateTime cursorTime = LocalDateTime.ofInstant(timestamp.toInstant(), 
+                // 转换时间戳
+                LocalDateTime initialCursorTime = LocalDateTime.ofInstant(timestamp.toInstant(), 
                                                              java.time.ZoneId.systemDefault());
+                
+                System.out.println("子评论游标解析: 时间=" + CURSOR_FORMATTER.format(initialCursorTime) + ", ID=" + id);
+                
+                // 检查时间戳是否是未来日期，如果是则使用当前时间
+                LocalDateTime now = LocalDateTime.now();
+                final LocalDateTime cursorTime;
+                if (initialCursorTime.isAfter(now)) {
+                    System.out.println("警告: 检测到未来日期游标 " + CURSOR_FORMATTER.format(initialCursorTime) + 
+                                    "，将使用当前时间: " + CURSOR_FORMATTER.format(now));
+                    cursorTime = now;
+                } else {
+                    cursorTime = initialCursorTime;
+                }
                 
                 // 使用复合条件：创建时间大于游标时间，或者时间相同但ID更大
                 queryWrapper.and(w -> w
@@ -245,7 +272,7 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                         .gt(ChildComment::getId, id)
                     )
                 );
-                System.out.println("子评论游标解析: 时间=" + CURSOR_FORMATTER.format(cursorTime) + ", ID=" + id);
+                
                 System.out.println("子评论查询条件: 创建时间 > " + CURSOR_FORMATTER.format(cursorTime) + 
                                " 或 (创建时间 = " + CURSOR_FORMATTER.format(cursorTime) + 
                                " 且 ID > " + id + ")");
