@@ -40,7 +40,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     private JobLikesService jobLikesService;
     
     @Resource
-    private PostCommentsService postCommentsService;
+    private CommentService commentService;
     
     @Resource
     private UserFollowService userFollowService;
@@ -265,7 +265,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 
                 // 批量查询评论数
                 for (Integer jobId : jobIds) {
-                    int commentsCount = postCommentsService.getJobCommentsCount(jobId);
+                    int commentsCount = commentService.getJobCommentsCount(jobId);
                     commentsCountMap.put(jobId, commentsCount);
                 }
             } catch (Exception e) {
@@ -431,7 +431,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         try {
             int likesCount = jobLikesService.getJobLikesCount(job.getId());
             int favoritesCount = jobFavoriteService.getJobFavoritesCount(job.getId());
-            int commentsCount = postCommentsService.getJobCommentsCount(job.getId());
+            int commentsCount = commentService.getJobCommentsCount(job.getId());
             
             dto.setLikes(likesCount);
             dto.setFavorites(favoritesCount);
@@ -570,8 +570,8 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         return jobLikesService;
     }
     
-    public PostCommentsService getJobCommentsService() {
-        return postCommentsService;
+    public CommentService getJobCommentsService() {
+        return commentService;
     }
 
     /**
@@ -658,7 +658,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 
                 // 批量查询评论数
                 for (Integer jobId : jobIds) {
-                    commentsCountMap.put(jobId, postCommentsService.getJobCommentsCount(jobId));
+                    commentsCountMap.put(jobId, commentService.getJobCommentsCount(jobId));
                 }
                 
                 // 批量查询收藏状态
