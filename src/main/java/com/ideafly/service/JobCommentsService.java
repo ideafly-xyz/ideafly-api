@@ -247,6 +247,7 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
     /**
      * 填充评论的详细信息，包括子评论和用户信息
      * 增强版：为子评论添加回复用户信息，确保是平铺结构
+     * 限制每个父评论下最多显示2条子评论，支持分页加载更多
      */
     private List<JobComments> fillCommentDetails(List<JobComments> parentComments, Integer jobId) {
         if (parentComments.isEmpty()) {
@@ -258,28 +259,58 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
                 .map(JobComments::getId)
                 .collect(Collectors.toList());
                 
-        // 查询这些父评论的所有子评论
-        List<JobComments> childComments = this.lambdaQuery()
-                .eq(JobComments::getJobId, jobId)
-                .in(JobComments::getParentCommentId, parentIds)
-                .orderByDesc(JobComments::getCreatedAt) // 按创建时间降序，最新的在前面
-                .list();
+        // 限制每个父评论下子评论的数量，每次最多查询2条子评论
+        final int CHILD_COMMENTS_PAGE_SIZE = 2;
                 
-        // 为每个父评论设置子评论
-        Map<Integer, List<JobComments>> childrenMap = childComments.stream()
-                .collect(Collectors.groupingBy(JobComments::getParentCommentId));
+        // 为每个父评论收集子评论，并支持分页
+        Map<Integer, List<JobComments>> childrenMap = new HashMap<>();
+        Map<Integer, Boolean> hasMoreChildrenMap = new HashMap<>(); // 记录每个父评论是否有更多子评论
+        Map<Integer, String> childrenNextCursorMap = new HashMap<>(); // 记录每个父评论子评论的下一页游标
+        
+        // 为每个父评论单独查询子评论
+        for (JobComments parent : parentComments) {
+            // 创建查询条件
+            LambdaQueryWrapper<JobComments> query = new LambdaQueryWrapper<>();
+            query.eq(JobComments::getJobId, jobId)
+                 .eq(JobComments::getParentCommentId, parent.getId())
+                 .orderByDesc(JobComments::getCreatedAt, JobComments::getId)
+                 .last("LIMIT " + (CHILD_COMMENTS_PAGE_SIZE + 1)); // 多查询一条用于判断是否还有更多
+                 
+            List<JobComments> childList = this.list(query);
+            
+            // 检查是否有更多子评论
+            boolean hasMoreChildren = childList.size() > CHILD_COMMENTS_PAGE_SIZE;
+            hasMoreChildrenMap.put(parent.getId(), hasMoreChildren);
+            
+            // 如果有更多子评论，移除多余的一条，并生成下一页游标
+            if (hasMoreChildren) {
+                JobComments lastChild = childList.get(CHILD_COMMENTS_PAGE_SIZE);
+                String nextCursor = CursorUtils.encodeCursor(lastChild.getCreatedAt(), lastChild.getId());
+                childrenNextCursorMap.put(parent.getId(), nextCursor);
                 
-        // 收集所有评论的用户ID (包括父评论和子评论)
-        Set<Integer> allUserIds = new HashSet<>();
-        // 收集所有回复评论的ID
-        Set<Integer> allReplyToCommentIds = new HashSet<>();
-        parentComments.forEach(c -> allUserIds.add(c.getUserId()));
-        childComments.forEach(c -> {
-            allUserIds.add(c.getUserId());
-            if (c.getReplyToCommentId() != null && c.getReplyToCommentId() > 0) {
-                allReplyToCommentIds.add(c.getReplyToCommentId());
+                // 移除多余的记录
+                childList = childList.subList(0, CHILD_COMMENTS_PAGE_SIZE);
             }
-        });
+            
+            childrenMap.put(parent.getId(), childList);
+        }
+        
+        // 收集所有评论中涉及的所有用户ID（包括父评论和子评论）
+        Set<Integer> allUserIds = new HashSet<>();
+        Set<Integer> allReplyToCommentIds = new HashSet<>();
+        
+        // 收集父评论用户ID
+        parentComments.forEach(c -> allUserIds.add(c.getUserId()));
+        
+        // 收集所有子评论的用户ID和回复评论ID
+        for (List<JobComments> children : childrenMap.values()) {
+            for (JobComments child : children) {
+                allUserIds.add(child.getUserId());
+                if (child.getReplyToCommentId() != null && child.getReplyToCommentId() > 0) {
+                    allReplyToCommentIds.add(child.getReplyToCommentId());
+                }
+            }
+        }
         
         // 查询所有用户信息
         Map<Integer, Users> usersMap = new HashMap<>();
@@ -299,9 +330,11 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
             allCommentsMap.put(parent.getId(), parent);
         }
         
-        // 再将子评论加入映射
-        for (JobComments child : childComments) {
-            allCommentsMap.put(child.getId(), child);
+        // 再将所有子评论加入映射
+        for (List<JobComments> children : childrenMap.values()) {
+            for (JobComments child : children) {
+                allCommentsMap.put(child.getId(), child);
+            }
         }
         
         // 为父评论设置用户信息和子评论
@@ -317,7 +350,10 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
             }
             
             // 设置子评论
-            List<JobComments> children = childrenMap.getOrDefault(parent.getId(), new ArrayList<>());
+            List<JobComments> children = childrenMap.get(parent.getId());
+            if (children == null) {
+                children = new ArrayList<>();
+            }
             
             // 为子评论设置用户信息和回复信息
             for (JobComments child : children) {
@@ -347,8 +383,13 @@ public class JobCommentsService extends ServiceImpl<JobCommentsMapper, JobCommen
             
             // 清空现有列表并逐个添加子评论
             parent.getChildren().clear();
-            // 已经在查询时按时间排序，直接添加即可
             parent.getChildren().addAll(children);
+            
+            // 设置是否有更多子评论标志和下一页游标
+            parent.setHasMoreChildren(hasMoreChildrenMap.getOrDefault(parent.getId(), false));
+            if (parent.getHasMoreChildren()) {
+                parent.setChildrenNextCursor(childrenNextCursorMap.get(parent.getId()));
+            }
         }
         
         return parentComments;

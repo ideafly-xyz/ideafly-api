@@ -29,4 +29,8 @@ public class PostComments {
     private String userAvatar;
     @TableField(exist = false)
     private String replyToUserName; // 被回复的用户名
+    @TableField(exist = false)
+    private Boolean hasMoreChildren = false; // 是否有更多子评论
+    @TableField(exist = false)
+    private String childrenNextCursor; // 子评论的下一页游标
 }
