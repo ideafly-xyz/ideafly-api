@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
+import java.util.HashMap;
+import java.util.Map;
 
 @Tag(name = "评论相关接口", description = "评论相关接口")
 @RestController
@@ -21,9 +23,11 @@ public class CommentController {
 
     @PostMapping("add")
     @Operation(summary = "添加评论", description = "添加评论到职位")
-    public R<Boolean> comment(@Valid @RequestBody JobCommentInputDto request) {
-        commentService.addComment(request);
-        return R.success(Boolean.TRUE);
+    public R<Map<String, Object>> comment(@Valid @RequestBody JobCommentInputDto request) {
+        Integer commentId = commentService.addComment(request);
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", commentId);
+        return R.success(result);
     }
     
     @NoAuth

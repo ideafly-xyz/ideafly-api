@@ -35,13 +35,16 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
 
     /**
      * 添加评论
+     * @return 返回新创建的评论ID
      */
-    public void addComment(JobCommentInputDto dto) {
+    public Integer addComment(JobCommentInputDto dto) {
         // 获取当前登录用户ID
         Integer userId = UserContextHolder.getUid();
         if (userId == null) {
             throw new IllegalArgumentException("用户未登录");
         }
+        
+        Integer commentId = null;
         
         // 创建新的父评论或子评论
         if (dto.getParentCommentId() == null || dto.getParentCommentId() == 0) {
@@ -56,6 +59,7 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
             
             // 保存父评论
             this.save(parentComment);
+            commentId = parentComment.getId();
         } else {
             // 创建子评论
             ChildComment childComment = new ChildComment();
@@ -68,7 +72,10 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
             
             // 保存子评论 - 使用通用Mapper保存到同一张表
             childCommentMapper.insert(childComment);
+            commentId = childComment.getId();
         }
+        
+        return commentId;
     }
     
     /**
