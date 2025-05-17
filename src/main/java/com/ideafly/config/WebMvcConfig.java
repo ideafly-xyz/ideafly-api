@@ -30,7 +30,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/v3/api-docs/**", // 排除API文档
                         "/api/user/totalLikes", // 排除获取用户总点赞接口
                         "/api/user/followStats", // 排除获取用户关注统计接口
-                        "/api/user/profile/**" // 排除用户资料接口
+                        "/api/user/profile/**", // 排除用户资料接口
+                        "/api/comments/loadMoreChildren", // 排除加载更多子评论接口
+                        "/api/comments/childrenCount" // 排除子评论数量接口
                         // 可以添加其他不需要token验证的路径
                 );
     }
