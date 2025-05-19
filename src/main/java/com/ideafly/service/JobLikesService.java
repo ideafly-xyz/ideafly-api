@@ -222,53 +222,25 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     public void addOrRemoveLike(JobLikeInputDto dto) {
         Integer uid = UserContextHolder.getUid();
         
-        // 查找是否存在点赞记录
-        JobLikes like = this.lambdaQuery()
-            .eq(JobLikes::getJobId, dto.getJobId())
-            .eq(JobLikes::getUserId, uid)
-            .one();
-            
-        // 获取帖子信息，用于确定帖子作者
+        // 验证职位是否存在 (保留现有逻辑)
         Jobs job = jobsService.getById(dto.getJobId());
         if (job == null) {
             System.out.println("职位不存在，职位ID: " + dto.getJobId());
             return;
         }
         
-        Integer authorId = job.getUserId();
-        // 不再需要获取author对象和totalLikes字段
+        // 直接使用一条SQL完成插入或更新，实现原子操作
+        int status = Objects.equals(dto.getIsLike(), 1) ? 1 : 0;
         
-        // 判断操作类型
-        if (Objects.equals(dto.getIsLike(), 1)) {
-            // 添加点赞
-            if (Objects.isNull(like)) {
-                // 无记录，创建新记录
-                JobLikes jobLike = new JobLikes();
-                jobLike.setUserId(uid);
-                jobLike.setJobId(dto.getJobId());
-                jobLike.setStatus(1); // 有效状态
-                this.save(jobLike);
-                
-                System.out.println("添加点赞，职位ID: " + dto.getJobId() + ", 用户ID: " + uid);
-            } else if (like.getStatus() == 0) {
-                // 有记录但已取消，更新状态
-                like.setStatus(1);
-                this.updateById(like);
-                
-                System.out.println("恢复点赞，职位ID: " + dto.getJobId() + ", 用户ID: " + uid);
-            }
-            // 已经点赞的不做处理
-        } else {
-            // 取消点赞
-            if (Objects.nonNull(like) && like.getStatus() == 1) {
-                // 更新状态为取消
-                like.setStatus(0);
-                this.updateById(like);
-                
-                System.out.println("取消点赞，职位ID: " + dto.getJobId() + ", 用户ID: " + uid);
-            }
-            // 不存在或已取消的不做处理
-        }
+        // 使用Mapper中的原子操作方法
+        int affected = this.baseMapper.insertOrUpdateLikeStatus(dto.getJobId(), uid, status);
+        
+        // 记录操作结果
+        String actionName = status == 1 ? "点赞" : "取消点赞";
+        System.out.println(actionName + "操作完成，职位ID: " + dto.getJobId() + 
+                           ", 用户ID: " + uid + 
+                           ", 状态: " + status +
+                           ", 影响行数: " + affected);
     }
     
     /**

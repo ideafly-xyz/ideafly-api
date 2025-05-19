@@ -246,7 +246,7 @@ public class JobH5Controller {
         // 转换为包含完整信息的DTO
         JobDetailOutputDto jobDto = jobService.convertDto(job);
         return R.success(jobDto);
-    }
+    }    
     @PostMapping("/like")
     @Operation(summary = "点赞", description = "点赞功能")
     public R<Boolean> like(@RequestBody @Valid JobLikeInputDto request) {
