@@ -71,51 +71,7 @@ public class UserH5Controller {
         return R.success(userGetOutputDto);
     }
 
-    @NoAuth
-    @GetMapping("totalLikes")
-    @Operation(summary = "获取用户总点赞数", description = "获取当前登录用户或指定用户的总点赞数")
-    public R<Map<String, Object>> getUserTotalLikes(@RequestParam(value = "userId", required = false) Integer userId) {
-        long startTime = System.currentTimeMillis();
-        System.out.println("====== 获取用户总点赞数 API 开始处理 ======");
-        System.out.println("请求参数: userId=" + userId);
-        
-        Integer targetUserId = userId;
-        // 如果未指定用户ID，则使用当前登录用户ID
-        if (targetUserId == null) {
-            targetUserId = UserContextHolder.getUid();
-            System.out.println("使用当前登录用户ID: " + targetUserId);
-            if (targetUserId == null) {
-                System.out.println("错误: 未登录且未指定用户ID");
-                return R.error("请提供要查询的用户ID");
-            }
-        }
-        
-        Users user = usersService.getById(targetUserId);
-        if (user == null) {
-            System.out.println("错误: 用户不存在, userId=" + targetUserId);
-            return R.error("用户不存在");
-        }
-        
-        System.out.println("计算用户 [" + user.getUsername() + "] (ID: " + targetUserId + ") 的总点赞数");
-        
-        // 从job_likes表计算总点赞数
-        long calcStartTime = System.currentTimeMillis();
-        Integer totalLikes = jobLikesService.calculateUserTotalLikes(targetUserId);
-        long calcEndTime = System.currentTimeMillis();
-        System.out.println("点赞计算耗时: " + (calcEndTime - calcStartTime) + "ms");
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("userId", user.getId());
-        result.put("username", user.getUsername());
-        result.put("totalLikes", totalLikes);
-        
-        long endTime = System.currentTimeMillis();
-        System.out.println("总点赞数: " + totalLikes);
-        System.out.println("API总处理耗时: " + (endTime - startTime) + "ms");
-        System.out.println("====== 获取用户总点赞数 API 处理完成 ======");
-        
-        return R.success(result);
-    }
+        // 点赞相关方法已移至 JobLikesController
     
     @NoAuth
     @GetMapping("profile/{userId}")

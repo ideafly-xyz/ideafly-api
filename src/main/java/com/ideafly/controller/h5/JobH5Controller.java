@@ -146,15 +146,6 @@ public class JobH5Controller {
     }
     
     /**
-     * 获取用户点赞的职位列表
-     */
-    @PostMapping("likes")
-    @Operation(summary = "获取点赞职位", description = "获取当前用户点赞的所有职位")
-    public R<Page<JobDetailOutputDto>> getLikedJobs(@RequestBody JobListInputDto request) {
-        return R.success(jobLikesService.getUserLikedJobs(request));
-    }
-    
-    /**
      * 获取当前用户自己发布的职位列表 (仅支持游标分页)
      */
     @PostMapping("myPosts")
@@ -246,20 +237,6 @@ public class JobH5Controller {
         // 转换为包含完整信息的DTO
         JobDetailOutputDto jobDto = jobService.convertDto(job);
         return R.success(jobDto);
-    }    
-    @PostMapping("/like")
-    @Operation(summary = "点赞", description = "点赞功能")
-    public R<Boolean> like(@RequestBody @Valid JobLikeInputDto request) {
-        System.out.println("收到点赞请求 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike() + ", 用户ID: " + UserContextHolder.getUid());
-        try {
-            jobLikesService.addOrRemoveLike(request);
-            System.out.println("点赞操作成功 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike());
-            return R.success(Boolean.TRUE);
-        } catch (Exception e) {
-            System.out.println("点赞操作失败 - " + e.getMessage());
-            e.printStackTrace();
-            return R.error("点赞失败: " + e.getMessage());
-        }
     }
     @PostMapping("favorite")
     public R<Boolean> favorite(@Valid @RequestBody JobFavoriteInputDto request) { //  使用 @Valid 注解开启参数校验
