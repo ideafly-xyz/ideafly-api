@@ -9,9 +9,8 @@ import com.ideafly.dto.job.*;
 import com.ideafly.model.ParentComment;
 import com.ideafly.model.Jobs;
 import com.ideafly.service.CommentService;
-import com.ideafly.service.JobFavoriteService;
-import com.ideafly.service.JobLikesService;
 import com.ideafly.service.JobsService;
+import com.ideafly.service.JobLikesService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,8 +30,6 @@ public class JobH5Controller {
     private JobsService jobService;
     @Resource
     private JobLikesService jobLikesService;
-    @Resource
-    private JobFavoriteService jobFavoriteService;
     @Resource
     private CommentService commentService;
     
@@ -98,51 +95,6 @@ public class JobH5Controller {
         
         // 调用已有方法处理
         return getJobList(request);
-    }
-    
-    /**
-     * 获取用户收藏的职位列表
-     */
-    @PostMapping("favorites")
-    @Operation(summary = "获取收藏职位", description = "获取当前用户收藏的所有职位")
-    public R<?> getFavoriteJobs(@RequestBody JobListInputDto request) {
-        // 确保请求参数合法
-        if (request == null) {
-            request = new JobListInputDto();
-        }
-        
-        // 设置默认页大小
-        if (request.getPageSize() == null || request.getPageSize() < 1) {
-            request.setPageSize(3);
-        }
-        
-        // 添加日志，方便调试分页问题
-        System.out.println("【JobH5Controller】获取收藏职位列表，" + 
-                "每页数量: " + request.getPageSize() + 
-                ", 使用游标: " + (Boolean.TRUE.equals(request.getUseCursor()) ? "是" : "否") +
-                ", 最大游标: " + request.getMaxCursor() +
-                ", 最小游标: " + request.getMinCursor());
-        
-        // 调用服务获取结果
-        Object result = jobFavoriteService.getUserFavoriteJobs(request);
-        
-        // 根据返回类型进行不同的日志记录
-        if (result instanceof Page) {
-            Page<JobDetailOutputDto> pageResult = (Page<JobDetailOutputDto>) result;
-            System.out.println("【JobH5Controller】获取收藏职位列表结果(传统分页)，当前页: " + pageResult.getCurrent() + 
-                    ", 总页数: " + pageResult.getPages() + 
-                    ", 总记录数: " + pageResult.getTotal() + 
-                    ", 本页记录数: " + pageResult.getRecords().size());
-        } else if (result instanceof CursorResponseDto) {
-            CursorResponseDto<JobDetailOutputDto> cursorResult = (CursorResponseDto<JobDetailOutputDto>) result;
-            System.out.println("【JobH5Controller】获取收藏职位列表结果(游标分页)，记录数: " + cursorResult.getRecords().size() + 
-                    ", 下一个maxCursor: " + cursorResult.getNextMaxCursor() +
-                    ", 下一个minCursor: " + cursorResult.getNextMinCursor() +
-                    ", 是否有更多历史内容: " + cursorResult.getHasMoreHistory() +
-                    ", 是否有更多新内容: " + cursorResult.getHasMoreNew());
-        }
-        
-        return R.success(result);
     }
     
     /**
@@ -237,10 +189,5 @@ public class JobH5Controller {
         // 转换为包含完整信息的DTO
         JobDetailOutputDto jobDto = jobService.convertDto(job);
         return R.success(jobDto);
-    }
-    @PostMapping("favorite")
-    public R<Boolean> favorite(@Valid @RequestBody JobFavoriteInputDto request) { //  使用 @Valid 注解开启参数校验
-        jobFavoriteService.addOrRemoveFavorite(request);
-        return R.success(Boolean.TRUE);
     }
 }
