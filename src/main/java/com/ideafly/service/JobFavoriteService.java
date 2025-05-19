@@ -537,37 +537,23 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
     public void addOrRemoveFavorite(JobFavoriteInputDto dto) {
         Integer uid = UserContextHolder.getUid();
         
-        // 查找是否存在收藏记录
-        JobFavorite favorite = this.lambdaQuery()
-            .eq(JobFavorite::getJobId, dto.getJobId())
-            .eq(JobFavorite::getUserId, uid)
-            .one();
-            
-        // 判断操作类型
-        if (Objects.equals(dto.getIsFavorite(), 1)) {
-            // 添加收藏
-            if (Objects.isNull(favorite)) {
-                // 无记录，创建新记录
-                JobFavorite jobFavorite = new JobFavorite();
-                jobFavorite.setUserId(uid);
-                jobFavorite.setJobId(dto.getJobId());
-                jobFavorite.setStatus(1); // 有效状态
-                this.save(jobFavorite);
-            } else if (favorite.getStatus() == 0) {
-                // 有记录但已取消，更新状态
-                favorite.setStatus(1);
-                this.updateById(favorite);
-            }
-            // 已经收藏的不做处理
-        } else {
-            // 取消收藏
-            if (Objects.nonNull(favorite) && favorite.getStatus() == 1) {
-                // 更新状态为取消
-                favorite.setStatus(0);
-                this.updateById(favorite);
-            }
-            // 不存在或已取消的不做处理
+        // 验证职位是否存在 (可选，如果业务需要)
+        Jobs job = jobsService.getById(dto.getJobId());
+        if (job == null) {
+            System.out.println("职位不存在，职位ID: " + dto.getJobId());
+            return;
         }
+        
+        // 直接使用一条SQL完成插入或更新，实现原子操作
+        int status = Objects.equals(dto.getIsFavorite(), 1) ? 1 : 0;
+        int affected = this.baseMapper.insertOrUpdateFavoriteStatus(dto.getJobId(), uid, status);
+        
+        // 记录操作结果
+        String actionName = status == 1 ? "收藏" : "取消收藏";
+        System.out.println(actionName + "操作完成，职位ID: " + dto.getJobId() + 
+                           ", 用户ID: " + uid + 
+                           ", 状态: " + status +
+                           ", 影响行数: " + affected);
     }
     
     /**
