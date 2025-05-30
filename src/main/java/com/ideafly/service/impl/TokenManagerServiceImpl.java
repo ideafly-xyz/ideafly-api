@@ -4,6 +4,7 @@ import com.ideafly.entity.dto.LoginUser;
 import com.ideafly.model.Users;
 import com.ideafly.service.TokenManagerService;
 import com.ideafly.service.UsersService;
+import com.ideafly.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -33,6 +34,9 @@ public class TokenManagerServiceImpl implements TokenManagerService {
     @Autowired
     private UsersService usersService;
     
+    @Autowired
+    private JwtUtil jwtUtil;
+    
     /**
      * 从token中提取用户信息
      * @param token JWT令牌
@@ -42,6 +46,12 @@ public class TokenManagerServiceImpl implements TokenManagerService {
     public LoginUser getUserByToken(String token) {
         if (token == null || token.isEmpty()) {
             logger.warn("Token为空");
+            return null;
+        }
+        
+        // 先检查token是否在黑名单中
+        if (jwtUtil.isTokenBlacklisted(token)) {
+            logger.warn("令牌已被加入黑名单");
             return null;
         }
         
@@ -91,6 +101,12 @@ public class TokenManagerServiceImpl implements TokenManagerService {
      */
     @Override
     public boolean validateToken(String token) {
+        // 先检查token是否在黑名单中
+        if (jwtUtil.isTokenBlacklisted(token)) {
+            logger.warn("令牌已被加入黑名单");
+            return false;
+        }
+        
         return parseToken(token) != null;
     }
     

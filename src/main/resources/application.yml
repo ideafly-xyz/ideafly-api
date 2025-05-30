@@ -34,8 +34,8 @@ spring:
       connection-timeout: 30000
       max-lifetime: 1800000
   redis:
-    host: localhost
-    port: 6379
+    host: 18.183.232.3
+    port: 8546
     password: 123456
     database: 0
     # 优化Redis连接
@@ -77,8 +77,8 @@ aliyun:
     templateCode: SMS_478500181  # 替换为你的短信模板 Code
 jwt:
   secret: VyacG/skIsQm9uJLXc14MlI0fM9dzoMX/133l/6jrS8=  # 替换成你的 JWT 密钥 (务必保密!)
-  expiration: 604800000  # Token过期时间，7天(单位毫秒) - 从1小时(3600000)改为7天
-  refreshExpiration: 2592000000 # Refresh Token过期时间，30天(单位毫秒) - 从1天(86400000)改为30天
+  expiration: 60000 # Access Token过期时间，1分钟(单位毫秒)
+  refreshExpiration: 180000 # Refresh Token过期时间，5分钟(单位毫秒)
 
 # Telegram 配置
 telegram:
