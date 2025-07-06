@@ -53,9 +53,15 @@ public class TelegramLoginController {
         // 生成JWT tokens
         String userId = user.getId();
         LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
-        outputDto.setAccessToken(jwtUtil.generateToken(userId, false));
-        outputDto.setRefreshToken(jwtUtil.generateToken(userId, true));
+        String accessToken = jwtUtil.generateToken(userId, false);
+        String refreshToken = jwtUtil.generateToken(userId, true);
+        outputDto.setAccessToken(accessToken);
+        outputDto.setRefreshToken(refreshToken);
         outputDto.setUserInfo(BeanUtil.copyProperties(user, UserDto.class));
+
+        // 日志：输出token及其结构
+        logJwtTokenDetail("accessToken", accessToken);
+        logJwtTokenDetail("refreshToken", refreshToken);
         
         return R.success(outputDto);
     }
@@ -99,5 +105,28 @@ public class TelegramLoginController {
         }
         
         return user;
+    }
+
+    private void logJwtTokenDetail(String label, String token) {
+        try {
+            System.out.println("==== " + label + " 结构分析 ====");
+            System.out.println("完整token: " + token);
+            String[] parts = token.split("\\.");
+            if (parts.length == 3) {
+                System.out.println("header(base64): " + parts[0]);
+                System.out.println("payload(base64): " + parts[1]);
+                System.out.println("signature(base64): " + parts[2]);
+                java.util.Base64.Decoder decoder = java.util.Base64.getUrlDecoder();
+                String headerJson = new String(decoder.decode(parts[0]), java.nio.charset.StandardCharsets.UTF_8);
+                String payloadJson = new String(decoder.decode(parts[1]), java.nio.charset.StandardCharsets.UTF_8);
+                System.out.println("header(json): " + headerJson);
+                System.out.println("payload(json): " + payloadJson);
+                System.out.println("signature(原始base64): " + parts[2]);
+            } else {
+                System.out.println("token格式不正确，无法分割为3段");
+            }
+        } catch (Exception e) {
+            System.out.println("解析token日志异常: " + e.getMessage());
+        }
     }
 } 

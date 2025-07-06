@@ -78,7 +78,7 @@ aliyun:
 jwt:
   secret: HEovz3PIPYVZuWpL3JJGmZ1+iV6QZBGizIJ3/w9fWxE=  # 替换成你的 JWT 密钥 (务必保密!)
   expiration: 60000 # Access Token过期时间，1分钟(单位毫秒)
-  refreshExpiration: 180000 # Refresh Token过期时间，5分钟(单位毫秒)
+  refreshExpiration: 180000 # Refresh Token过期时间，3分钟(单位毫秒)
 
 # Telegram 配置
 telegram:

@@ -67,24 +67,9 @@ public class TokenManagerServiceImpl implements TokenManagerService {
         String userIdentifier = claims.getSubject();
         logger.debug("从Token中提取用户标识: {}", userIdentifier);
         
-        Users user = null;
-        
-        // 检查是否是Telegram用户ID格式 (以tg_开头)
-        if (userIdentifier.startsWith("tg_")) {
-            // 根据手机号查找用户 (Telegram用户的手机号字段存储的是tg_id)
-            user = usersService.getUserByMobile(userIdentifier);
-            logger.debug("通过手机号查找Telegram用户: {}", userIdentifier);
-        } else {
-            // 尝试作为数字ID处理
-            try {
-                Integer userId = Integer.parseInt(userIdentifier);
-                user = usersService.getById(userId);
-                logger.debug("通过ID查找普通用户: {}", userId);
-            } catch (NumberFormatException e) {
-                logger.error("用户ID格式错误，既不是数字也不是tg_格式: {}", userIdentifier);
-                return null;
-            }
-        }
+        // 直接用userIdentifier作为uuid查找用户
+        Users user = usersService.getById(userIdentifier);
+        logger.debug("通过UUID查找用户: {}", userIdentifier);
         
         if (user == null) {
             logger.warn("未找到用户: {}", userIdentifier);

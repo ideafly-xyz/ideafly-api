@@ -1,4 +1,4 @@
-package com.ideafly.aop;
+package com.ideafly.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideafly.common.ErrorCode;
