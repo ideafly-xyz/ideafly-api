@@ -57,9 +57,9 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         long startTime = System.currentTimeMillis();
         
         // 获取当前用户ID
-        Integer userId = UserContextHolder.getUid();
+        String userId = UserContextHolder.getUid();
         if (userId == null) {
-            // 用户未登录，返回空结果
+            // 用户未登录，返回空收藏列表
             System.out.println("【性能日志】用户未登录，返回空收藏列表");
             return new CursorResponseDto<>(
                     new ArrayList<>(),
@@ -220,7 +220,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         // 3. 批量获取所需的数据
         
         // 3.1 收集所有需要的用户ID
-        List<Integer> userIds = jobs.stream()
+        List<String> userIds = jobs.stream()
             .map(Jobs::getUserId)
             .distinct()
             .collect(Collectors.toList());
@@ -233,7 +233,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         }
         
         // 用户ID到用户对象的映射
-        Map<Integer, Users> userMap = users.stream()
+        Map<String, Users> userMap = users.stream()
             .collect(Collectors.toMap(Users::getId, user -> user, (u1, u2) -> u1));
             
         // 3.3 批量查询统计数据
@@ -350,9 +350,9 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         long startTime = System.currentTimeMillis();
         
         // 获取当前用户ID
-        Integer userId = UserContextHolder.getUid();
+        String userId = UserContextHolder.getUid();
         if (userId == null) {
-            // 用户未登录，返回空结果
+            // 用户未登录，返回空收藏列表
             System.out.println("【性能日志】用户未登录，返回空收藏列表");
             Page<Jobs> emptyPage = PageUtil.build(request);
             return PageUtil.build(emptyPage, new ArrayList<>());
@@ -413,7 +413,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         // 3. 批量获取所需的数据，避免单个查询
         
         // 3.1 收集所有需要的用户ID
-        List<Integer> userIds = favoriteJobs.stream()
+        List<String> userIds = favoriteJobs.stream()
             .map(Jobs::getUserId)
             .distinct()
             .collect(Collectors.toList());
@@ -428,7 +428,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         }
         
         // 用户ID到用户对象的映射
-        Map<Integer, Users> userMap = users.stream()
+        Map<String, Users> userMap = users.stream()
             .collect(Collectors.toMap(Users::getId, user -> user, (u1, u2) -> u1));
             
         long userQueryEnd = System.currentTimeMillis();
@@ -535,19 +535,16 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
      * 收藏或者取消收藏
      */
     public void addOrRemoveFavorite(JobFavoriteInputDto dto) {
-        Integer uid = UserContextHolder.getUid();
-        
+        String uid = UserContextHolder.getUid();
         // 验证职位是否存在 (可选，如果业务需要)
         Jobs job = jobsService.getById(dto.getJobId());
         if (job == null) {
             System.out.println("职位不存在，职位ID: " + dto.getJobId());
             return;
         }
-        
         // 直接使用一条SQL完成插入或更新，实现原子操作
         int status = Objects.equals(dto.getIsFavorite(), 1) ? 1 : 0;
         int affected = this.baseMapper.insertOrUpdateFavoriteStatus(dto.getJobId(), uid, status);
-        
         // 记录操作结果
         String actionName = status == 1 ? "收藏" : "取消收藏";
         System.out.println(actionName + "操作完成，职位ID: " + dto.getJobId() + 
@@ -561,8 +558,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
      */
     public boolean isJobFavorite(Integer jobId) {
         // 获取当前用户ID
-        Integer uid = UserContextHolder.getUid();
-        
+        String uid = UserContextHolder.getUid();
         // 如果有用户ID，检查该用户是否收藏了此职位
         if (Objects.nonNull(uid)) {
             return this.lambdaQuery()
@@ -571,7 +567,6 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 .eq(JobFavorite::getStatus, 1) // 只检查有效收藏
                 .exists();
         }
-        
         return false;
     }
     
@@ -619,21 +614,17 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
     }
 
     // 添加批量查询收藏状态的方法
-    public Map<Integer, Boolean> batchGetFavoriteStatus(List<Integer> jobIds, Integer userId) {
+    public Map<Integer, Boolean> batchGetFavoriteStatus(List<Integer> jobIds, String userId) {
         long startTime = System.currentTimeMillis();
         System.out.println("【性能日志】开始批量查询收藏状态 - 职位数量: " + jobIds.size());
-        
         Map<Integer, Boolean> result = new HashMap<>();
-        
         // 初始化默认状态为false
         for (Integer jobId : jobIds) {
             result.put(jobId, false);
         }
-        
         if (jobIds.isEmpty() || userId == null) {
             return result;
         }
-        
         try {
             // 批量查询所有有效收藏的记录
             List<JobFavorite> favoriteList = this.lambdaQuery()
@@ -641,16 +632,13 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 .eq(JobFavorite::getUserId, userId)
                 .eq(JobFavorite::getStatus, 1) // 只查询有效收藏
                 .list();
-            
             // 更新收藏状态
             for (JobFavorite favorite : favoriteList) {
                 result.put(favorite.getJobId(), true);
             }
-            
             long endTime = System.currentTimeMillis();
             System.out.println("【性能日志】批量查询收藏状态完成 - 耗时: " + (endTime - startTime) + 
                     "ms, 已收藏数量: " + favoriteList.size() + "/" + jobIds.size());
-            
             return result;
         } catch (Exception e) {
             System.out.println("【性能日志】批量查询收藏状态异常: " + e.getMessage());

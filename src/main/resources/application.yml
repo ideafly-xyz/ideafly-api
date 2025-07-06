@@ -76,7 +76,7 @@ aliyun:
     signName: 智飞  # 替换为你的短信签名
     templateCode: SMS_478500181  # 替换为你的短信模板 Code
 jwt:
-  secret: VyacG/skIsQm9uJLXc14MlI0fM9dzoMX/133l/6jrS8=  # 替换成你的 JWT 密钥 (务必保密!)
+  secret: HEovz3PIPYVZuWpL3JJGmZ1+iV6QZBGizIJ3/w9fWxE=  # 替换成你的 JWT 密钥 (务必保密!)
   expiration: 60000 # Access Token过期时间，1分钟(单位毫秒)
   refreshExpiration: 180000 # Refresh Token过期时间，5分钟(单位毫秒)
 

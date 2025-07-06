@@ -1,4 +1,4 @@
-package com.ideafly.controller.h5;
+package com.ideafly.controller.user;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.ideafly.aop.anno.NoAuth;
@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 
 @RestController
-@RequestMapping("api/auth")
+@RequestMapping("api/user")
 @Slf4j
-public class AuthH5Controller {
+public class RefreshTokenController {
     @Resource
     private JwtUtil jwtUtil;
     @Resource
@@ -57,11 +57,11 @@ public class AuthH5Controller {
             LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
             
             // 生成新的accessToken
-            String newAccessToken = jwtUtil.generateToken(phoneNumber);
+            String newAccessToken = jwtUtil.generateToken(phoneNumber, false);
             outputDto.setAccessToken(newAccessToken);
             
             // 生成新的refreshToken
-            String newRefreshToken = jwtUtil.generateRefreshToken(phoneNumber);
+            String newRefreshToken = jwtUtil.generateToken(phoneNumber, true);
             outputDto.setRefreshToken(newRefreshToken);
             
             // 将旧的refreshToken加入黑名单

@@ -14,7 +14,7 @@ public class JobLikes {
     @TableId(type = IdType.AUTO)
     private Integer id;
     private Integer jobId;
-    private Integer userId;
+    private String userId;
     private Integer status;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date createdAt;

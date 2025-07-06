@@ -1,4 +1,4 @@
-package com.ideafly.controller.h5;
+package com.ideafly.controller.user;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.ideafly.aop.anno.NoAuth;
@@ -24,8 +24,8 @@ import java.util.Date;
 
 @Tag(name = "Telegram认证接口", description = "Telegram登录认证")
 @RestController
-@RequestMapping("api/auth/telegram")
-public class TelegramAuthController {
+@RequestMapping("api/user/telegram")
+public class TelegramLoginController {
     
     @Resource
     private TelegramAuthService telegramAuthService;
@@ -37,8 +37,8 @@ public class TelegramAuthController {
     private JwtUtil jwtUtil;
     
     @NoAuth
-    @PostMapping("/h5/login")
-    @Operation(summary = "H5端Telegram登录")
+    @PostMapping("/login")
+    @Operation(summary = "Telegram登录")
     public R<LoginSuccessOutputDto> telegramLogin(@Valid @RequestBody TelegramAuthDto authData) {
         // 验证Telegram登录数据
         boolean isValid = telegramAuthService.verifyTelegramAuth(authData);
@@ -51,9 +51,10 @@ public class TelegramAuthController {
         Users user = getUserByTelegramId(authData);
         
         // 生成JWT tokens
+        String userId = user.getId();
         LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
-        outputDto.setAccessToken(jwtUtil.generateToken(user.getMobile()));
-        outputDto.setRefreshToken(jwtUtil.generateRefreshToken(user.getMobile()));
+        outputDto.setAccessToken(jwtUtil.generateToken(userId, false));
+        outputDto.setRefreshToken(jwtUtil.generateToken(userId, true));
         outputDto.setUserInfo(BeanUtil.copyProperties(user, UserDto.class));
         
         return R.success(outputDto);

@@ -40,7 +40,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         System.out.println("【性能日志】开始获取用户点赞职位列表 - 参数: " + request);
         
         // 获取当前用户ID
-        Integer userId = UserContextHolder.getUid();
+        String userId = UserContextHolder.getUid();
         if (userId == null) {
             // 用户未登录，返回空结果
             System.out.println("【性能日志】用户未登录，返回空点赞列表");
@@ -104,7 +104,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         // 3. 批量获取所需的数据，避免单个查询
         
         // 3.1 收集所有需要的用户ID
-        List<Integer> userIds = likedJobs.stream()
+        List<String> userIds = likedJobs.stream()
             .map(Jobs::getUserId)
             .distinct()
             .collect(Collectors.toList());
@@ -119,7 +119,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         }
         
         // 用户ID到用户对象的映射
-        Map<Integer, Users> userMap = users.stream()
+        Map<String, Users> userMap = users.stream()
             .collect(Collectors.toMap(Users::getId, user -> user, (u1, u2) -> u1));
             
         long userQueryEnd = System.currentTimeMillis();
@@ -220,7 +220,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
      * 添加或取消点赞
      */
     public void addOrRemoveLike(JobLikeInputDto dto) {
-        Integer uid = UserContextHolder.getUid();
+        String uid = UserContextHolder.getUid();
         
         // 验证职位是否存在 (保留现有逻辑)
         Jobs job = jobsService.getById(dto.getJobId());
@@ -256,7 +256,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     /**
      * 判断用户是否点赞了职位
      */
-    public boolean isJobLikedByUser(Integer jobId, Integer userId) {
+    public boolean isJobLikedByUser(Integer jobId, String userId) {
         // 添加调试日志
         System.out.println("检查点赞状态 - jobId: " + jobId + ", userId: " + userId);
         
@@ -274,7 +274,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
      * 判断当前登录用户是否点赞了职位
      */
     public boolean isJobLike(Integer jobId) {
-        Integer uid = UserContextHolder.getUid();
+        String uid = UserContextHolder.getUid();
         if (Objects.nonNull(uid)) {
             return isJobLikedByUser(jobId, uid);
         }
@@ -282,7 +282,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     }
     
     // 添加批量查询点赞状态的方法
-    public Map<Integer, Boolean> batchGetLikeStatus(List<Integer> jobIds, Integer userId) {
+    public Map<Integer, Boolean> batchGetLikeStatus(List<Integer> jobIds, String userId) {
         long startTime = System.currentTimeMillis();
         System.out.println("【性能日志】开始批量查询点赞状态 - 职位数量: " + jobIds.size());
         
@@ -325,7 +325,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
      * 根据用户ID计算该用户获得的总点赞数
      * 此方法从job_likes表中动态计算，替代原先在users表中存储的totalLikes字段
      */
-    public Integer calculateUserTotalLikes(Integer userId) {
+    public Integer calculateUserTotalLikes(String userId) {
         if (userId == null) {
             return 0;
         }

@@ -58,12 +58,11 @@ public class PostLikesController {
     @NoAuth
     @GetMapping("/count")
     @Operation(summary = "获取用户总点赞数", description = "获取指定用户获得的总点赞数")
-    public R<Map<String, Object>> getUserTotalLikes(@RequestParam(value = "userId", required = false) Integer userId) {
+    public R<Map<String, Object>> getUserTotalLikes(@RequestParam(value = "userId", required = false) String userId) {
         long startTime = System.currentTimeMillis();
         System.out.println("====== 获取用户总点赞数 API 开始处理 ======");
         System.out.println("请求参数: userId=" + userId);
-        
-        Integer targetUserId = userId;
+        String targetUserId = userId;
         // 如果未指定用户ID，则使用当前登录用户ID
         if (targetUserId == null) {
             targetUserId = UserContextHolder.getUid();
@@ -73,19 +72,15 @@ public class PostLikesController {
                 return R.error("请提供要查询的用户ID");
             }
         }
-        
         // 计算用户获得的总点赞数
         Integer totalLikes = jobLikesService.calculateUserTotalLikes(targetUserId);
-        
         Map<String, Object> result = new HashMap<>();
         result.put("userId", targetUserId);
         result.put("totalLikes", totalLikes);
-        
         long endTime = System.currentTimeMillis();
         System.out.println("总点赞数: " + totalLikes);
         System.out.println("API总处理耗时: " + (endTime - startTime) + "ms");
         System.out.println("====== 获取用户总点赞数 API 处理完成 ======");
-        
         return R.success(result);
     }
 } 

@@ -1,4 +1,4 @@
-package com.ideafly.controller.h5;
+package com.ideafly.controller;
 
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
@@ -36,7 +36,7 @@ public class UserH5Controller {
     @GetMapping("get")
     @Operation(summary = "获取用户信息", description = "获取用户信息")
     public R<UserGetOutputDto> getUserInfo() {
-        Integer uid = UserContextHolder.getUid();
+        String uid = UserContextHolder.getUid();
         if (Objects.isNull(uid)) {
             return R.error("未登录");
         }
@@ -76,7 +76,7 @@ public class UserH5Controller {
     @NoAuth
     @GetMapping("profile/{userId}")
     @Operation(summary = "获取用户公开资料", description = "获取指定用户的公开资料，无需登录")
-    public R<Map<String, Object>> getUserProfile(@PathVariable("userId") Integer userId) {
+    public R<Map<String, Object>> getUserProfile(@PathVariable("userId") String userId) {
         Users user = usersService.getById(userId);
         if (user == null) {
             return R.error("用户不存在");
@@ -104,7 +104,7 @@ public class UserH5Controller {
             profile.put("mutualFollowCount", followStats.getMutualFollowCount());
             
             // 如果当前有登录用户，添加是否已关注该用户的信息
-            Integer currentUserId = UserContextHolder.getUid();
+            String currentUserId = UserContextHolder.getUid();
             if (currentUserId != null && !currentUserId.equals(userId)) {
                 boolean isFollowing = userFollowService.isFollowing(userId);
                 profile.put("isFollowing", isFollowing);
@@ -130,9 +130,9 @@ public class UserH5Controller {
     @NoAuth
     @GetMapping("followStats")
     @Operation(summary = "获取用户关注统计信息", description = "获取当前登录用户或指定用户的关注统计信息")
-    public R<UserFollowStatsDto> getUserFollowStats(@RequestParam(value = "userId", required = false) Integer userId) {
+    public R<UserFollowStatsDto> getUserFollowStats(@RequestParam(value = "userId", required = false) String userId) {
         try {
-            Integer targetUserId = userId;
+            String targetUserId = userId;
             // 如果未指定用户ID，则使用当前登录用户ID
             if (targetUserId == null) {
                 targetUserId = UserContextHolder.getUid();

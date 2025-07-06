@@ -34,10 +34,8 @@ public class TokenInterceptor implements HandlerInterceptor {
     
     // 不需要验证token的路径
     private static final String[] WHITE_LIST = {
-            "/api/user/login",
-            "/api/user/register",
-            "/api/auth/telegram",    // Telegram登录相关
-            "/api/auth/refreshToken", // Token刷新
+            "/api/user/telegram",    // Telegram登录相关
+            "/api/user/refreshToken", // Token刷新
             "/api/sms/sendSms",      // 短信验证码
             "/api/sms/login",        // 短信登录
             "/swagger",

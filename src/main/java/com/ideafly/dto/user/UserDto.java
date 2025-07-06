@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Data
 public class UserDto {
-    private Integer id; // 用户ID，主键，自增
+    private String id; // 用户ID，主键，UUID
     private String username; // 用户名，唯一
     private String email; // 邮箱，唯一，用于登录和找回密码
     private String mobile; // 手机号，唯一，用于登录和短信通知

@@ -11,7 +11,7 @@ import lombok.Data;
 public class UserFollowStatsDto {
     
     @Schema(description = "用户ID", required = true)
-    private Integer userId;
+    private String userId;
     
     @Schema(description = "用户名", required = true)
     private String username;

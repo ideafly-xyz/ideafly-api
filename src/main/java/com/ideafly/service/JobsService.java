@@ -217,7 +217,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         }
         
         // 批量获取所有用户ID
-        Set<Integer> userIds = jobs.stream()
+        Set<String> userIds = jobs.stream()
                 .map(Jobs::getUserId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
@@ -227,7 +227,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 .collect(Collectors.toList());
         
         // 批量查询用户信息
-        final Map<Integer, Users> userMap;
+        final Map<String, Users> userMap;
         if (!userIds.isEmpty()) {
             List<Users> users = usersService.listByIds(userIds);
             userMap = users.stream()
@@ -237,7 +237,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         }
         
         // 获取当前用户
-        Integer currentUserId = UserContextHolder.getUid();
+        String currentUserId = UserContextHolder.getUid();
         
         // 批量查询收藏和点赞状态
         final Map<Integer, Boolean> favoriteMap = new HashMap<>();
@@ -456,7 +456,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         long statusQueryStart = System.currentTimeMillis();
         try {
             // 获取当前用户ID
-            Integer uid = UserContextHolder.getUid();
+            String uid = UserContextHolder.getUid();
             
             // 默认设置为false
             dto.setIsLike(false);
@@ -511,39 +511,32 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     // 新增重载方法，支持批量转换多个职位，减少重复查询
     public JobDetailOutputDto convertDto(
             Jobs job,
-            Map<Integer, Users> userMap,
+            Map<String, Users> userMap,
             Map<Integer, Integer> likesCountMap,
             Map<Integer, Integer> favoritesCountMap, 
             Map<Integer, Integer> commentsCountMap,
             Map<Integer, Boolean> favoriteMap,
             Map<Integer, Boolean> likeMap) {
-        
         JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
-        
         // 设置职位基本信息
         dto.setPostTitle(job.getPostTitle());
         dto.setPostContent(job.getPostContent());
-        
         // 设置用户信息（从Map获取，避免查询）
         Users user = userMap.get(job.getUserId());
         if (user != null) {
             dto.setPublisherName(user.getUsername());
             dto.setPublisherAvatar(user.getAvatar());
         }
-        
         // 设置发布时间
         dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
-        
         // 设置统计数据
         dto.setLikes(likesCountMap.getOrDefault(job.getId(), 0));
         dto.setFavorites(favoritesCountMap.getOrDefault(job.getId(), 0));
         dto.setComments(commentsCountMap.getOrDefault(job.getId(), 0));
         dto.setShares(0); // 暂时设置为0，如果有共享计数表，可以从那里获取
-        
         // 设置收藏和点赞状态
         dto.setIsLike(likeMap.getOrDefault(job.getId(), false));
         dto.setIsFavorite(favoriteMap.getOrDefault(job.getId(), false));
-        
         return dto;
     }
 
@@ -584,7 +577,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         long startTime = System.currentTimeMillis();
         
         // 获取当前用户ID
-        Integer currentUserId = UserContextHolder.getUid();
+        String currentUserId = UserContextHolder.getUid();
         if (currentUserId == null) {
             System.out.println("【性能日志】用户未登录，无法获取关注用户帖子");
             throw new IllegalArgumentException("用户未登录");
@@ -595,7 +588,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         
         try {
             // 获取当前用户关注的用户ID列表
-            List<Integer> followingUserIds = userFollowService.getFollowingUserIds(currentUserId);
+            List<String> followingUserIds = userFollowService.getFollowingUserIds(currentUserId);
             
             // 如果没有关注任何用户，返回空结果
             if (CollUtil.isEmpty(followingUserIds)) {
@@ -619,7 +612,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             }
             
             // 批量获取所有用户ID
-            Set<Integer> userIds = jobs.stream()
+            Set<String> userIds = jobs.stream()
                 .map(Jobs::getUserId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
@@ -629,7 +622,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 .collect(Collectors.toList());
             
             // 批量查询用户信息
-            final Map<Integer, Users> userMap;
+            final Map<String, Users> userMap;
             if (!userIds.isEmpty()) {
                 List<Users> users = usersService.listByIds(userIds);
                 userMap = users.stream()
@@ -705,7 +698,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     /**
      * 获取用户发布的职位（仅支持游标分页）
      */
-    public Object getUserPosts(JobListInputDto request, Integer userId) {
+    public Object getUserPosts(JobListInputDto request, String userId) {
         System.out.println("【性能日志】获取用户职位列表 - 用户ID: " + userId);
         long startTime = System.currentTimeMillis();
         
@@ -738,7 +731,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     /**
      * 使用游标分页获取用户职位
      */
-    private CursorResponseDto<JobDetailOutputDto> getUserPostsWithCursor(JobListInputDto request, Integer userId) {
+    private CursorResponseDto<JobDetailOutputDto> getUserPostsWithCursor(JobListInputDto request, String userId) {
         System.out.println("【性能日志】使用游标分页获取用户职位列表");
         long startTime = System.currentTimeMillis();
         

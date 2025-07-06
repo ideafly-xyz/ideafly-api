@@ -34,8 +34,8 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
             throw new IllegalArgumentException("未提供关注参数");
         }
         
-        Integer followerId = UserContextHolder.getUid();
-        Integer followedId = dto.getFollowedId();
+        String followerId = UserContextHolder.getUid();
+        String followedId = dto.getFollowedId();
         
         if (followedId == null) {
             throw new IllegalArgumentException("被关注者ID不能为空");
@@ -88,21 +88,16 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      * @return 如果已关注返回true，否则返回false
      */
     @Override
-    public boolean isFollowing(Integer targetUserId) {
-        // 获取当前登录用户ID
-        Integer uid = UserContextHolder.getUid();
+    public boolean isFollowing(String followedId) {
+        String uid = UserContextHolder.getUid();
         if (uid == null) {
-            // 未登录用户视为未关注
             return false;
         }
-
-        // 查询是否已关注该用户
         long count = this.lambdaQuery()
                 .eq(UserFollow::getFollowerId, uid)
-                .eq(UserFollow::getFollowedId, targetUserId)
-                .eq(UserFollow::getStatus, 1) // 只查询激活状态的关注
+                .eq(UserFollow::getFollowedId, followedId)
+                .eq(UserFollow::getStatus, 1)
                 .count();
-        
         return count > 0;
     }
     
@@ -110,16 +105,14 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      * 获取当前用户关注的用户ID列表
      */
     @Override
-    public List<Integer> getFollowingUserIds(Integer userId) {
+    public List<String> getFollowingUserIds(String userId) {
         if (userId == null) {
             return new ArrayList<>();
         }
-        
-        // 查询当前用户关注的所有用户ID (只查询激活状态的关注)
         return this.lambdaQuery()
                 .select(UserFollow::getFollowedId)
                 .eq(UserFollow::getFollowerId, userId)
-                .eq(UserFollow::getStatus, 1) // 只查询激活状态的关注
+                .eq(UserFollow::getStatus, 1)
                 .list()
                 .stream()
                 .map(UserFollow::getFollowedId)
@@ -130,11 +123,11 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      * 获取用户的关注统计信息
      */
     @Override
-    public UserFollowStatsDto getUserFollowStats(Integer userId) {
+    public UserFollowStatsDto getUserFollowStats(String userId) {
         // 当userId为null时，尝试从认证信息获取用户ID
         // 如果认证信息也没有，则抛出异常提示需要userId参数
         if (userId == null) {
-            userId = UserContextHolder.getUid();
+            userId = UserContextHolder.getUid().toString();
             if (userId == null) {
                 throw new IllegalArgumentException("请提供要查询的用户ID");
             }
@@ -160,7 +153,7 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
         
         // 查询互相关注数量
         // 1. 先获取该用户关注的人
-        List<Integer> followingIds = this.lambdaQuery()
+        List<String> followingIds = this.lambdaQuery()
                 .eq(UserFollow::getFollowerId, userId)
                 .eq(UserFollow::getStatus, 1)
                 .list()
@@ -194,26 +187,20 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      * 获取用户的关注列表 (该用户关注的人)
      */
     @Override
-    public List<Users> getUserFollowing(Integer userId) {
+    public List<Users> getUserFollowing(String userId) {
         if (userId == null) {
             userId = UserContextHolder.getUid();
         }
-        
-        // 获取用户关注的人的ID列表
-        List<Integer> followingIds = this.lambdaQuery()
+        List<String> followingIds = this.lambdaQuery()
                 .eq(UserFollow::getFollowerId, userId)
                 .eq(UserFollow::getStatus, 1)
                 .list()
                 .stream()
                 .map(UserFollow::getFollowedId)
                 .collect(Collectors.toList());
-        
-        // 如果没有关注任何人，返回空列表
         if (followingIds.isEmpty()) {
             return new ArrayList<>();
         }
-        
-        // 获取这些用户的信息
         return usersService.listByIds(followingIds);
     }
     
@@ -221,26 +208,20 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      * 获取用户的粉丝列表 (关注该用户的人)
      */
     @Override
-    public List<Users> getUserFollowers(Integer userId) {
+    public List<Users> getUserFollowers(String userId) {
         if (userId == null) {
             userId = UserContextHolder.getUid();
         }
-        
-        // 获取关注该用户的人的ID列表
-        List<Integer> followerIds = this.lambdaQuery()
+        List<String> followerIds = this.lambdaQuery()
                 .eq(UserFollow::getFollowedId, userId)
                 .eq(UserFollow::getStatus, 1)
                 .list()
                 .stream()
                 .map(UserFollow::getFollowerId)
                 .collect(Collectors.toList());
-        
-        // 如果没有粉丝，返回空列表
         if (followerIds.isEmpty()) {
             return new ArrayList<>();
         }
-        
-        // 获取这些用户的信息
         return usersService.listByIds(followerIds);
     }
     
@@ -248,41 +229,31 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      * 获取互相关注的用户列表
      */
     @Override
-    public List<Users> getMutualFollows(Integer userId) {
+    public List<Users> getMutualFollows(String userId) {
         if (userId == null) {
             userId = UserContextHolder.getUid();
         }
-        
-        // 获取用户关注的人的ID列表
-        List<Integer> followingIds = this.lambdaQuery()
+        List<String> followingIds = this.lambdaQuery()
                 .eq(UserFollow::getFollowerId, userId)
                 .eq(UserFollow::getStatus, 1)
                 .list()
                 .stream()
                 .map(UserFollow::getFollowedId)
                 .collect(Collectors.toList());
-        
-        // 如果没有关注任何人，返回空列表
         if (followingIds.isEmpty()) {
             return new ArrayList<>();
         }
-        
-        // 在这些人中查找有哪些人也关注了该用户
-        List<Integer> mutualIds = this.lambdaQuery()
-                .eq(UserFollow::getFollowedId, userId) // 关注了该用户
-                .in(UserFollow::getFollowerId, followingIds) // 且被该用户关注
-                .eq(UserFollow::getStatus, 1) // 只统计激活状态的关注
+        List<String> mutualIds = this.lambdaQuery()
+                .eq(UserFollow::getFollowedId, userId)
+                .in(UserFollow::getFollowerId, followingIds)
+                .eq(UserFollow::getStatus, 1)
                 .list()
                 .stream()
                 .map(UserFollow::getFollowerId)
                 .collect(Collectors.toList());
-        
-        // 如果没有互相关注的用户，返回空列表
         if (mutualIds.isEmpty()) {
             return new ArrayList<>();
         }
-        
-        // 获取这些用户的信息
         return usersService.listByIds(mutualIds);
     }
 }

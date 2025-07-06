@@ -1,11 +1,11 @@
-package com.ideafly.demos;
+package com.ideafly.utils;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
-public class KeyGeneratorExample {
+public class SecretKeyGenerator {
     public static void main(String[] args) {
         try {
             // 创建 KeyGenerator 对象

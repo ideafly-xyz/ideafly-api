@@ -14,8 +14,8 @@ public class UserFollowStatusDto {
     private boolean isFollowing;
     
     @Schema(description = "被关注者用户ID", required = true)
-    private Integer followedId;
+    private String followedId;
     
     @Schema(description = "关注者用户ID", required = true)
-    private Integer followerId;
+    private String followerId;
 } 

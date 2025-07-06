@@ -22,12 +22,12 @@ public class UserFollow {
     /**
      * 关注者用户ID (谁关注别人)
      */
-    private Integer followerId;
+    private String followerId;
     
     /**
      * 被关注者用户ID (被关注的人)
      */
-    private Integer followedId;
+    private String followedId;
     
     /**
      * 关注时间

@@ -1,4 +1,4 @@
-package com.ideafly.controller.h5;
+package com.ideafly.controller;
 
 import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
@@ -82,7 +82,7 @@ public class UserFollowController {
     @GetMapping("check/{userId}")
     @Operation(summary = "检查是否关注了某用户", description = "检查当前登录用户是否已关注指定用户")
     public R<Map<String, Object>> checkFollow(
-            @Parameter(description = "被检查的用户ID") @PathVariable("userId") Integer userId) {
+            @Parameter(description = "被检查的用户ID") @PathVariable("userId") String userId) {
         try {
             boolean isFollowing = userFollowService.isFollowing(userId);
             Map<String, Object> result = new HashMap<>();
@@ -97,7 +97,7 @@ public class UserFollowController {
     @GetMapping("stats")
     @Operation(summary = "获取用户关注统计信息", description = "获取指定用户的关注、粉丝和互关数量")
     public R<UserFollowStatsDto> getUserFollowStats(
-            @Parameter(description = "用户ID，不传默认为当前登录用户") @RequestParam(required = false) Integer userId) {
+            @Parameter(description = "用户ID，不传默认为当前登录用户") @RequestParam(required = false) String userId) {
         try {
             UserFollowStatsDto stats = userFollowService.getUserFollowStats(userId);
             return R.success(stats);
@@ -111,7 +111,7 @@ public class UserFollowController {
     @GetMapping("following")
     @Operation(summary = "获取用户关注列表", description = "获取指定用户关注的人列表")
     public R<List<Map<String, Object>>> getUserFollowing(
-            @Parameter(description = "用户ID，不传默认为当前登录用户") @RequestParam(required = false) Integer userId) {
+            @Parameter(description = "用户ID，不传默认为当前登录用户") @RequestParam(required = false) String userId) {
         try {
             List<Users> followingList = userFollowService.getUserFollowing(userId);
             List<Map<String, Object>> result = followingList.stream().map(user -> {
@@ -131,7 +131,7 @@ public class UserFollowController {
     @GetMapping("followers")
     @Operation(summary = "获取用户粉丝列表", description = "获取关注指定用户的人列表")
     public R<List<Map<String, Object>>> getUserFollowers(
-            @Parameter(description = "用户ID，不传默认为当前登录用户") @RequestParam(required = false) Integer userId) {
+            @Parameter(description = "用户ID，不传默认为当前登录用户") @RequestParam(required = false) String userId) {
         try {
             List<Users> followersList = userFollowService.getUserFollowers(userId);
             List<Map<String, Object>> result = followersList.stream().map(user -> {
@@ -151,7 +151,7 @@ public class UserFollowController {
     @GetMapping("mutual")
     @Operation(summary = "获取互相关注的用户列表", description = "获取与指定用户互相关注的用户列表")
     public R<List<Map<String, Object>>> getMutualFollows(
-            @Parameter(description = "用户ID，不传默认为当前登录用户") @RequestParam(required = false) Integer userId) {
+            @Parameter(description = "用户ID，不传默认为当前登录用户") @RequestParam(required = false) String userId) {
         try {
             List<Users> mutualList = userFollowService.getMutualFollows(userId);
             List<Map<String, Object>> result = mutualList.stream().map(user -> {

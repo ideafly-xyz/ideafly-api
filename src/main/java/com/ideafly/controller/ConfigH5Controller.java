@@ -1,4 +1,4 @@
-package com.ideafly.controller.h5;
+package com.ideafly.controller;
 
 import com.ideafly.common.R;
 import com.ideafly.dto.job.PublishJobInputDto;

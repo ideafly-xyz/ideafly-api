@@ -16,6 +16,6 @@ public interface JobLikesMapper extends BaseMapper<JobLikes> {
     @Insert("INSERT INTO job_likes(job_id, user_id, status) VALUES (#{jobId}, #{userId}, #{status}) " +
            "ON DUPLICATE KEY UPDATE status = #{status}")
     int insertOrUpdateLikeStatus(@Param("jobId") Integer jobId, 
-                               @Param("userId") Integer userId, 
+                               @Param("userId") String userId, 
                                @Param("status") Integer status);
 }

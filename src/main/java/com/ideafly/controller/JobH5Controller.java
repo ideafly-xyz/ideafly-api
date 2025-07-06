@@ -1,4 +1,4 @@
-package com.ideafly.controller.h5;
+package com.ideafly.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -104,7 +104,7 @@ public class JobH5Controller {
     @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，强制使用游标分页")
     public R<?> getMyPosts(@RequestBody JobListInputDto request) {
         // 获取当前用户ID
-        Integer userId = UserContextHolder.getUid();
+        String userId = UserContextHolder.getUid();
         if (userId == null) {
             return R.error("用户未登录");
         }

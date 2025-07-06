@@ -115,7 +115,7 @@ public class JwtUtil {
         return (extractedUserId.equals(userId) && !isTokenExpired(token));
     }
 
-    private Key getSignInKey() {
+    public Key getSignInKey() {
         // 替换 '-' 和 '_' 为 '+' 和 '/'
         String processedKey = secretKey.replace('-', '+').replace('_', '/');
         byte[] keyBytes = Decoders.BASE64.decode(processedKey);
@@ -217,23 +217,6 @@ public class JwtUtil {
         }
     }
     
-    /**
-     * 生成普通token (无boolean参数版本，兼容旧代码)
-     */
-    public String generateToken(String phoneNumber) {
-        return generateToken(phoneNumber, false);
-    }
-    
-    /**
-     * 生成刷新token
-     */
-    public String generateRefreshToken(String phoneNumber) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("isRefreshToken", true);
-        claims.put("tokenType", "refresh");
-        return createToken(claims, phoneNumber, refreshExpiration);
-    }
-
     /**
      * 使refreshToken失效
      */

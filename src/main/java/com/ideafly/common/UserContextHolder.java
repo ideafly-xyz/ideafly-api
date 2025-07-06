@@ -16,7 +16,7 @@ public class UserContextHolder {
     public static UserDto getUser() {
         return currentUser.get();
     }
-    public static Integer getUid() {
+    public static String getUid() {
         if (Objects.isNull(currentUser.get())) {
             return null;
         }

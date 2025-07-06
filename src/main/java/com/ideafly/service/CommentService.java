@@ -39,7 +39,7 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
      */
     public Integer addComment(JobCommentInputDto dto) {
         // 获取当前登录用户ID
-        Integer userId = UserContextHolder.getUid();
+        String userId = UserContextHolder.getUid();
         if (userId == null) {
             throw new IllegalArgumentException("用户未登录");
         }
@@ -379,13 +379,13 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         }
         
         // 收集所有用户ID
-        Set<Integer> userIds = parentComments.stream()
+        Set<String> userIds = parentComments.stream()
             .map(ParentComment::getUserId)
             .collect(Collectors.toSet());
         
         // 批量查询用户信息
         List<Users> users = usersService.listByIds(new ArrayList<>(userIds));
-        Map<Integer, Users> userMap = users.stream()
+        Map<String, Users> userMap = users.stream()
             .collect(Collectors.toMap(Users::getId, user -> user, (u1, u2) -> u1));
         
         // 设置用户信息
@@ -410,8 +410,8 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         }
         
         // 收集所有用户ID和被回复的用户ID
-        Set<Integer> userIds = new HashSet<>();
-        Set<Integer> replyToUserIds = new HashSet<>();
+        Set<String> userIds = new HashSet<>();
+        Set<String> replyToUserIds = new HashSet<>();
         
         for (ChildComment comment : childComments) {
             userIds.add(comment.getUserId());
@@ -429,7 +429,7 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         
         // 批量查询用户信息
         List<Users> users = usersService.listByIds(new ArrayList<>(userIds));
-        Map<Integer, Users> userMap = users.stream()
+        Map<String, Users> userMap = users.stream()
             .collect(Collectors.toMap(Users::getId, user -> user, (u1, u2) -> u1));
         
         // 设置用户信息

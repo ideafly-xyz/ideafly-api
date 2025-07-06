@@ -19,6 +19,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.jsonwebtoken.Claims;
+
 /**
  * 认证服务实现类
  */
@@ -70,6 +72,27 @@ public class AuthServiceImpl implements AuthService {
         // 生成JWT令牌
         String accessToken = jwtUtil.generateToken(user.getId().toString(), false);
         String refreshToken = jwtUtil.generateToken(user.getId().toString(), true);
+
+        // 解析payload内容并转为JSON字符串
+        Claims accessClaims = io.jsonwebtoken.Jwts.parser()
+            .setSigningKey(jwtUtil.getSignInKey())
+            .parseClaimsJws(accessToken)
+            .getBody();
+        Claims refreshClaims = io.jsonwebtoken.Jwts.parser()
+            .setSigningKey(jwtUtil.getSignInKey())
+            .parseClaimsJws(refreshToken)
+            .getBody();
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String accessPayloadJson = objectMapper.writeValueAsString(accessClaims);
+            String refreshPayloadJson = objectMapper.writeValueAsString(refreshClaims);
+            log.info("生成的AccessToken: {}", accessToken);
+            log.info("AccessToken Payload: {}", accessPayloadJson);
+            log.info("生成的RefreshToken: {}", refreshToken);
+            log.info("RefreshToken Payload: {}", refreshPayloadJson);
+        } catch (Exception e) {
+            log.error("打印JWT payload时出错", e);
+        }
 
         // 构建用户信息
         Map<String, Object> userInfo = buildUserInfo(user);

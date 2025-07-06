@@ -13,8 +13,8 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Users {
-    @TableId(value = "id", type = IdType.AUTO)
-    private Integer id; // 用户ID，主键，自增
+    @TableId(value = "id", type = IdType.ASSIGN_UUID)
+    private String id; // 用户ID，主键，UUID
     private String username; // 用户名，唯一
     private String email; // 邮箱，唯一，用于登录和找回密码
     private String mobile; // 手机号，唯一，用于登录和短信通知

@@ -1,4 +1,4 @@
-package com.ideafly.controller.h5;
+package com.ideafly.controller;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.ideafly.aop.anno.NoAuth;
@@ -6,6 +6,7 @@ import com.ideafly.common.R;
 import com.ideafly.dto.LoginSuccessOutputDto;
 import com.ideafly.dto.SmsLoginInputDto;
 import com.ideafly.dto.user.UserDto;
+import com.ideafly.model.Users;
 import com.ideafly.service.SmsService;
 import com.ideafly.service.UsersService;
 import com.ideafly.utils.JwtUtil;
@@ -40,10 +41,12 @@ public class SmsH5Controller {
     @PostMapping("/login")
     public R<LoginSuccessOutputDto> login(@RequestBody SmsLoginInputDto dto) {
         if (smsService.verifyCode(dto.getVerificationCode())) {
-            LoginSuccessOutputDto outputDto=new LoginSuccessOutputDto();
-            outputDto.setAccessToken(jwtUtil.generateToken(dto.getPhoneNumber()));
-            outputDto.setRefreshToken(jwtUtil.generateRefreshToken(dto.getPhoneNumber()));
-            outputDto.setUserInfo(BeanUtil.copyProperties(usersService.getOrAddByMobile(dto.getPhoneNumber()), UserDto.class));
+            Users user = usersService.getOrAddByMobile(dto.getPhoneNumber());
+            String userId = user.getId();
+            LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
+            outputDto.setAccessToken(jwtUtil.generateToken(userId, false));
+            outputDto.setRefreshToken(jwtUtil.generateToken(userId, true));
+            outputDto.setUserInfo(BeanUtil.copyProperties(user, UserDto.class));
             return R.success(outputDto);
         }
         return R.error("验证码错误");
