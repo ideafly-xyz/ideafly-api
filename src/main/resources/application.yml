@@ -61,6 +61,7 @@ spring-doc:
     path: /swagger-ui.html
     tags-sorter: alpha
     operations-sorter: alpha
+    persistAuthorization: true
   api-docs:
     path: /v3/api-docs
   group-configs:
