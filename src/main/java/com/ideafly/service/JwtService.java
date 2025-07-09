@@ -1,4 +1,4 @@
-package com.ideafly.utils;
+package com.ideafly.service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -7,8 +7,8 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.crypto.SecretKey;
@@ -24,12 +24,12 @@ import io.jsonwebtoken.ExpiredJwtException;
 /**
  * JWT工具类
  */
-@Component
+@Service
 @Slf4j
-public class JwtUtil {
+public class JwtService {
 
     @Resource
-    private RedisTemplate<String, String> redisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
 
     @Value("${jwt.secret}") // 从配置文件中读取密钥
     private String secretKey;
@@ -41,7 +41,7 @@ public class JwtUtil {
     private long refreshExpiration;
 
     // Token黑名单前缀
-    private static final String TOKEN_BLACKLIST_PREFIX = "token:blacklist:";
+    private static final String TOKEN_BLACKLIST_PREFIX = "refreshTokenBlackList:";
 
     /**
      * 从令牌中获取用户ID
@@ -88,8 +88,7 @@ public class JwtUtil {
     public String generateToken(String userId, boolean isRefreshToken) {
         Map<String, Object> claims = new HashMap<>();
         if (isRefreshToken) {
-            claims.put("isRefreshToken", true);
-            claims.put("tokenType", "refresh"); // 确保同时设置tokenType字段
+            claims.put("tokenType", "refresh"); // 只保留tokenType字段
         }
         return createToken(claims, userId, isRefreshToken ? refreshExpiration : jwtExpiration);
     }
@@ -123,82 +122,74 @@ public class JwtUtil {
     }
 
     /**
-     * 从令牌中获取手机号（与extractUserId相同，但命名更符合TokenInterceptor需求）
+     * 从令牌中获取用户ID（与extractUserId相同，但命名更符合TokenInterceptor需求）
      */
-    public String extractPhoneNumber(String token) {
+    public String extractUserIdFromToken(String token) {
         return extractUserId(token);
     }
 
     /**
-     * 从token中提取手机号，即使token已过期
+     * 从token中提取用户ID，即使token已过期
      * 专用于refreshToken处理，允许从过期token中提取信息
      */
-    public String extractPhoneNumberIgnoreExpired(String token) {
+    public String extractUserIdIgnoreExpired(String token) {
         try {
             return extractUserId(token);
         } catch (ExpiredJwtException e) {
             // 从过期的JWT中提取Claims
             return e.getClaims().getSubject();
         } catch (Exception e) {
-            log.error("从token中提取phoneNumber失败：", e);
+            log.error("从token中提取userId失败：", e);
             throw e;
         }
     }
 
     /**
-     * 验证手机号的令牌（与validateToken相同，但命名更符合TokenInterceptor需求）
+     * 验证用户ID的令牌（与validateToken相同，但命名更符合TokenInterceptor需求）
      */
-    public boolean isTokenValid(String token, String phoneNumber) {
+    public boolean isTokenValid(String token, String userId) {
         if (isTokenBlacklisted(token)) {
             return false;
         }
-        
-        String extractedPhoneNumber = extractPhoneNumber(token);
-        return (extractedPhoneNumber.equals(phoneNumber) && !isTokenExpired(token));
+        String extractedUserId = extractUserIdFromToken(token);
+        return (extractedUserId.equals(userId) && !isTokenExpired(token));
     }
 
     /**
      * 验证refresh token有效性
      */
-    public boolean isRefreshTokenValid(String token, String phoneNumber) {
+    public boolean isRefreshTokenValid(String token, String userId) {
         // 检查token是否在黑名单中
         if (isTokenBlacklisted(token)) {
             log.info("RefreshToken在黑名单中: {}", token);
             return false;
         }
-        
         try {
             Claims claims = extractAllClaims(token);
-            
             // 支持两种类型的刷新令牌标识：
             // 1. 新方式，使用tokenType="refresh"
             // 2. 旧方式，使用isRefreshToken=true
             boolean isRefresh = false;
-            
             // 检查tokenType字段
             String tokenType = (String) claims.get("tokenType");
             if ("refresh".equals(tokenType)) {
                 isRefresh = true;
             }
-            
             // 如果没有tokenType或tokenType不是"refresh"，检查isRefreshToken字段
             if (!isRefresh) {
                 Boolean isRefreshToken = claims.get("isRefreshToken", Boolean.class);
                 isRefresh = Boolean.TRUE.equals(isRefreshToken);
             }
-            
             if (!isRefresh) {
                 log.info("非刷新token类型");
                 return false;
             }
-            
-            // 验证主题与phoneNumber是否匹配
-            String extractedPhoneNumber = claims.getSubject();
-            if (!extractedPhoneNumber.equals(phoneNumber)) {
-                log.info("phoneNumber不匹配: token={}, input={}", extractedPhoneNumber, phoneNumber);
+            // 验证主题与userId是否匹配
+            String extractedUserId = claims.getSubject();
+            if (!extractedUserId.equals(userId)) {
+                log.info("userId不匹配: token={}, input={}", extractedUserId, userId);
                 return false;
             }
-            
             // 检查token是否过期
             Date expiration = claims.getExpiration();
             boolean expired = expiration.before(new Date());
@@ -206,7 +197,6 @@ public class JwtUtil {
                 log.info("refreshToken已过期，过期时间: {}", expiration);
                 return false;
             }
-            
             return true;
         } catch (ExpiredJwtException e) {
             log.info("refreshToken已过期: {}", e.getMessage());
@@ -232,7 +222,7 @@ public class JwtUtil {
             long ttl = expiration.getTime() - System.currentTimeMillis();
             if (ttl > 0) {
                 // 将token加入黑名单，保留到原过期时间
-                redisTemplate.opsForValue().set(
+                stringRedisTemplate.opsForValue().set(
                     TOKEN_BLACKLIST_PREFIX + token,
                     "1",
                     ttl,
@@ -249,6 +239,6 @@ public class JwtUtil {
      * 检查token是否在黑名单中
      */
     public boolean isTokenBlacklisted(String token) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(TOKEN_BLACKLIST_PREFIX + token));
+        return Boolean.TRUE.equals(stringRedisTemplate.hasKey(TOKEN_BLACKLIST_PREFIX + token));
     }
 }

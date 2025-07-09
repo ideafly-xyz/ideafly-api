@@ -1,4 +1,4 @@
-package com.ideafly.controller.user;
+package com.ideafly.controller.user.login;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.ideafly.aop.anno.NoAuth;
@@ -9,7 +9,7 @@ import com.ideafly.dto.user.UserDto;
 import com.ideafly.model.Users;
 import com.ideafly.service.TelegramAuthService;
 import com.ideafly.service.UsersService;
-import com.ideafly.utils.JwtUtil;
+import com.ideafly.service.JwtService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +22,7 @@ import javax.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.Date;
 
-@Tag(name = "Telegram认证接口", description = "Telegram登录认证")
+@Tag(name = "Telegram 登录接口", description = "Telegram登录认证")
 @RestController
 @RequestMapping("api/user/telegram")
 public class TelegramLoginController {
@@ -34,7 +34,7 @@ public class TelegramLoginController {
     private UsersService usersService;
     
     @Resource
-    private JwtUtil jwtUtil;
+    private JwtService jwtService;
     
     @NoAuth
     @PostMapping("/login")
@@ -53,8 +53,8 @@ public class TelegramLoginController {
         // 生成JWT tokens
         String userId = user.getId();
         LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
-        String accessToken = jwtUtil.generateToken(userId, false);
-        String refreshToken = jwtUtil.generateToken(userId, true);
+        String accessToken = jwtService.generateToken(userId, false);
+        String refreshToken = jwtService.generateToken(userId, true);
         outputDto.setAccessToken(accessToken);
         outputDto.setRefreshToken(refreshToken);
         outputDto.setUserInfo(BeanUtil.copyProperties(user, UserDto.class));
@@ -88,9 +88,7 @@ public class TelegramLoginController {
             if (authData.getPhotoUrl() != null) {
                 user.setAvatar(authData.getPhotoUrl());
             }
-            
-            // 生成一个临时的唯一手机号，用于JWT
-            user.setMobile("tg_" + authData.getId());
+        
             
             // 设置注册时间
             user.setCreatedAt(new Date());
@@ -113,15 +111,13 @@ public class TelegramLoginController {
             System.out.println("完整token: " + token);
             String[] parts = token.split("\\.");
             if (parts.length == 3) {
-                System.out.println("header(base64): " + parts[0]);
-                System.out.println("payload(base64): " + parts[1]);
-                System.out.println("signature(base64): " + parts[2]);
                 java.util.Base64.Decoder decoder = java.util.Base64.getUrlDecoder();
                 String headerJson = new String(decoder.decode(parts[0]), java.nio.charset.StandardCharsets.UTF_8);
                 String payloadJson = new String(decoder.decode(parts[1]), java.nio.charset.StandardCharsets.UTF_8);
-                System.out.println("header(json): " + headerJson);
-                System.out.println("payload(json): " + payloadJson);
-                System.out.println("signature(原始base64): " + parts[2]);
+                String signature = parts[2];
+                // 构造完整json
+                String json = String.format("{\n  \"header\": %s,\n  \"payload\": %s,\n  \"signature\": \"%s\"\n}", headerJson, payloadJson, signature);
+                System.out.println("token结构json: " + json);
             } else {
                 System.out.println("token格式不正确，无法分割为3段");
             }

@@ -9,7 +9,7 @@ import com.ideafly.dto.user.UserDto;
 import com.ideafly.model.Users;
 import com.ideafly.service.SmsService;
 import com.ideafly.service.UsersService;
-import com.ideafly.utils.JwtUtil;
+import com.ideafly.service.JwtService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +22,7 @@ public class SmsH5Controller {
     @Resource
     private SmsService smsService;
     @Resource
-    private JwtUtil jwtUtil;
+    private JwtService jwtService;
     @Resource
     private UsersService usersService;
 
@@ -44,8 +44,8 @@ public class SmsH5Controller {
             Users user = usersService.getOrAddByMobile(dto.getPhoneNumber());
             String userId = user.getId();
             LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
-            outputDto.setAccessToken(jwtUtil.generateToken(userId, false));
-            outputDto.setRefreshToken(jwtUtil.generateToken(userId, true));
+            outputDto.setAccessToken(jwtService.generateToken(userId, false));
+            outputDto.setRefreshToken(jwtService.generateToken(userId, true));
             outputDto.setUserInfo(BeanUtil.copyProperties(user, UserDto.class));
             return R.success(outputDto);
         }

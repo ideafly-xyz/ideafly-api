@@ -1,4 +1,4 @@
-package com.ideafly.controller.user;
+package com.ideafly.controller.user.login;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.ideafly.aop.anno.NoAuth;
@@ -6,8 +6,8 @@ import com.ideafly.common.ErrorCode;
 import com.ideafly.common.R;
 import com.ideafly.dto.LoginSuccessOutputDto;
 import com.ideafly.dto.user.UserDto;
+import com.ideafly.service.JwtService;
 import com.ideafly.service.UsersService;
-import com.ideafly.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -21,7 +21,7 @@ import javax.annotation.Resource;
 @Slf4j
 public class RefreshTokenController {
     @Resource
-    private JwtUtil jwtUtil;
+    private JwtService jwtService;
     @Resource
     private UsersService usersService;
 
@@ -33,7 +33,6 @@ public class RefreshTokenController {
         String refreshToken = null;
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             refreshToken = authorizationHeader.substring(7); // 去除 "Bearer " 前缀
-            log.info("提取的refreshToken长度: {}", refreshToken.length());
         }
         
         if (refreshToken == null || refreshToken.isEmpty()) {
@@ -42,12 +41,12 @@ public class RefreshTokenController {
         }
         
         try {
-            String phoneNumber = jwtUtil.extractPhoneNumberIgnoreExpired(refreshToken);
-            log.info("从refreshToken提取的phoneNumber: {}", phoneNumber);
+            String userId = jwtService.extractUserIdIgnoreExpired(refreshToken);
+            log.info("从refreshToken提取的userId: {}", userId);
             
             // 验证refreshToken是否有效 (包含过期验证)
-            if (!jwtUtil.isRefreshTokenValid(refreshToken, phoneNumber)) { 
-                log.warn("refreshToken无效或已过期: {}", refreshToken.substring(0, Math.min(20, refreshToken.length())));
+            if (!jwtService.isRefreshTokenValid(refreshToken, userId)) { 
+                log.warn("refreshToken 无效或已过期: {}", refreshToken.substring(0, Math.min(20, refreshToken.length())));
                 return R.error(ErrorCode.TOKEN_EXPIRED);
             }
             
@@ -57,20 +56,20 @@ public class RefreshTokenController {
             LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
             
             // 生成新的accessToken
-            String newAccessToken = jwtUtil.generateToken(phoneNumber, false);
+            String newAccessToken = jwtService.generateToken(userId, false);
             outputDto.setAccessToken(newAccessToken);
             
             // 生成新的refreshToken
-            String newRefreshToken = jwtUtil.generateToken(phoneNumber, true);
+            String newRefreshToken = jwtService.generateToken(userId, true);
             outputDto.setRefreshToken(newRefreshToken);
             
             // 将旧的refreshToken加入黑名单
-            jwtUtil.invalidateRefreshToken(refreshToken);
+            jwtService.invalidateRefreshToken(refreshToken);
             log.info("旧refreshToken已加入黑名单，生成新的accessToken和refreshToken");
             
             // 获取用户信息
             outputDto.setUserInfo(BeanUtil.copyProperties(
-                usersService.getOrAddByMobile(phoneNumber), 
+                usersService.getById(userId),
                 UserDto.class
             ));
             
