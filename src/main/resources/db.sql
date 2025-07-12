@@ -28,7 +28,7 @@ CREATE TABLE users (
 
 CREATE TABLE `jobs` (
                         `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '作品ID',
-                        `user_id` INT UNSIGNED COMMENT '发布者用户ID (关联用户表)',
+                        `user_id` CHAR(36) COMMENT '发布者用户ID (关联用户表)',
                         `post_title` VARCHAR(100) NOT NULL COMMENT '作品标题',
                         `post_content` TEXT NOT NULL COMMENT '作品内容',
                         `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -40,7 +40,7 @@ CREATE TABLE `jobs` (
 CREATE TABLE `post_comments` (
                                 `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '评论ID',
                                 `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
-                                `user_id` INT UNSIGNED NOT NULL COMMENT '评论用户ID (关联用户表)',
+                                `user_id` CHAR(36) NOT NULL COMMENT '评论用户ID (关联用户表)',
                                 `parent_comment_id` INT UNSIGNED COMMENT '父级评论ID (用于实现评论树结构)',
                                 `reply_to_comment_id` INT UNSIGNED COMMENT '回复的评论ID (标识回复关系)',
                                 `content` TEXT NOT NULL COMMENT '评论内容',
@@ -54,7 +54,7 @@ CREATE TABLE `post_comments` (
 CREATE TABLE `job_likes` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '点赞ID',
     `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
-    `user_id` INT UNSIGNED NOT NULL COMMENT '点赞用户ID (关联用户表)',
+    `user_id` CHAR(36) NOT NULL COMMENT '点赞用户ID (关联用户表)',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
     `status` TINYINT DEFAULT 1 COMMENT '点赞状态: 1(有效), 0(已取消)',
     UNIQUE KEY `unique_like` (`job_id`, `user_id`) COMMENT '防止重复点赞',
@@ -66,7 +66,7 @@ CREATE TABLE `job_likes` (
 CREATE TABLE `job_favorites` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '收藏ID',
     `job_id` INT UNSIGNED NOT NULL COMMENT '职位ID (关联 jobs 表)',
-    `user_id` INT UNSIGNED NOT NULL COMMENT '收藏用户ID (关联用户表)',
+    `user_id` CHAR(36) NOT NULL COMMENT '收藏用户ID (关联用户表)',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
     `status` TINYINT DEFAULT 1 COMMENT '收藏状态: 1(有效), 0(已取消)',
     UNIQUE KEY `unique_favorite` (`job_id`, `user_id`) COMMENT '防止重复收藏',
@@ -77,8 +77,8 @@ CREATE TABLE `job_favorites` (
 
 CREATE TABLE `user_follows` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '关注关系ID',
-    `follower_id` INT UNSIGNED NOT NULL COMMENT '关注者用户ID (谁关注别人)',
-    `followed_id` INT UNSIGNED NOT NULL COMMENT '被关注者用户ID (被关注的人)',
+    `follower_id` CHAR(36) NOT NULL COMMENT '关注者用户ID (谁关注别人)',
+    `followed_id` CHAR(36) NOT NULL COMMENT '被关注者用户ID (被关注的人)',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '关注时间',
     `status` TINYINT DEFAULT 1 COMMENT '关注状态: 1(有效), 0(已取消)',
     UNIQUE KEY `unique_follow` (`follower_id`, `followed_id`) COMMENT '防止重复关注',
