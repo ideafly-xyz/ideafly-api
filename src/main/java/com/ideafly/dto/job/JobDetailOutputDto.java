@@ -10,7 +10,7 @@ import java.util.List;
 @Data
 public class JobDetailOutputDto implements Serializable {
     private Integer id;
-    private Integer userId;
+    private String userId;
     private String publisherName;
     private String publisherAvatar;
     private String postTitle;

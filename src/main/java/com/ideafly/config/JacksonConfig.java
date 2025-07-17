@@ -40,7 +40,7 @@ public class JacksonConfig {
         objectMapper.registerModule(javaTimeModule);
         objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false); // 禁止将日期写为时间戳
         // objectMapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")); // 移除 SimpleDateFormat 设置
-        objectMapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+
         // 解决序列化空对象报错的问题
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
