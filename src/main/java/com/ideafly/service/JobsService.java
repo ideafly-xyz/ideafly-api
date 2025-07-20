@@ -319,73 +319,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         }).collect(Collectors.toList());
     }
     
-    /**
-     * 使用传统分页方式获取职位列表（兼容旧版本）
-     */
-    private Page<JobDetailOutputDto> getJobsWithTraditionalPaging(JobListInputDto request) {
-        long startTime = System.currentTimeMillis();
-        System.out.println("【性能日志】使用传统分页获取职位列表");
-        
-        // 确保页大小合法
-        if (request.getPageSize() == null || request.getPageSize() <= 0) {
-            request.setPageSize(3);
-        }
-        
-        // 构建分页对象（默认第1页）
-        Page<Jobs> page = new Page<>(1, request.getPageSize());
-        
-        // 查询数据库总记录数，确保分页计算准确
-        long countStart = System.currentTimeMillis();
-        long totalCount = this.lambdaQuery().count();
-        long countEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】数据库总数查询耗时: " + (countEnd - countStart) + "ms, 总记录数: " + totalCount);
-        
-        // 计算实际的总页数
-        int totalPages = (int) ((totalCount + request.getPageSize() - 1) / request.getPageSize());
-        System.out.println("【分页计算】总记录数: " + totalCount + ", 页大小: " + request.getPageSize() + ", 计算的总页数: " + totalPages);
-        
-        // 执行分页查询 (始终从第1页开始，游标分页取代了传统分页)
-        Page<Jobs> pageResult = this.lambdaQuery()
-                .orderByDesc(Jobs::getId)
-                .page(page);
-        
-        // 更新总页数，确保一致性
-        pageResult.setTotal(totalCount);
-        pageResult.setPages(totalPages);
-        
-        List<Jobs> jobs = pageResult.getRecords();
-        long dbQueryEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】数据库查询耗时: " + (dbQueryEnd - countEnd) + "ms, 记录数: " + jobs.size() + 
-                ", 当前页: 1, 总页数: " + totalPages);
-        
-        if (jobs.isEmpty()) {
-            System.out.println("【性能日志】职位列表为空，直接返回");
-            Page<JobDetailOutputDto> emptyResult = new Page<>();
-            // 设置正确的总页数信息
-            emptyResult.setTotal(totalCount);
-            emptyResult.setPages(totalPages);
-            emptyResult.setCurrent(1);
-            emptyResult.setSize(request.getPageSize());
-            emptyResult.setRecords(Collections.emptyList());
-            return emptyResult;
-        }
-        
-        // 处理记录并转换为DTO
-        List<JobDetailOutputDto> dtoList = processJobsForOutput(jobs);
-        
-        // 构建分页结果
-        Page<JobDetailOutputDto> result = new Page<>();
-        result.setRecords(dtoList);
-        result.setTotal(totalCount);
-        result.setPages(totalPages);
-        result.setCurrent(1);
-        result.setSize(request.getPageSize());
-        
-        long endTime = System.currentTimeMillis();
-        System.out.println("【性能日志】传统分页获取职位列表完成 - 耗时: " + (endTime - startTime) + "ms");
-        
-        return result;
-    }
+
 
     public JobDetailOutputDto convertDto(Jobs job) {
         long startTime = System.currentTimeMillis();
