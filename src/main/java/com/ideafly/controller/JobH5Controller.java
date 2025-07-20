@@ -1,25 +1,19 @@
 package com.ideafly.controller;
-
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.job.*;
-import com.ideafly.model.ParentComment;
 import com.ideafly.model.Jobs;
 import com.ideafly.service.CommentService;
 import com.ideafly.service.JobsService;
 import com.ideafly.service.JobLikesService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
-import java.util.List;
-import java.util.Map;
 
 @Tag(name = "工作相关接口", description = "工作相关接口")
 @RestController
@@ -34,83 +28,50 @@ public class JobH5Controller {
     private CommentService commentService;
     
     @NoAuth
-    @PostMapping("list")
-    @Operation(summary = "获取职位列表", description = "支持传统分页和基于游标的分页")
-    public R<?> getJobList(@RequestBody JobListInputDto request) {
-        // 确保请求参数合法
-        if (request == null) {
-            request = new JobListInputDto();
-        }
-        
-        // 设置默认页大小
-        if (request.getPageSize() == null || request.getPageSize() < 1) {
-            request.setPageSize(3);
-        }
-        
-        // 添加日志，方便调试分页问题
-        System.out.println("【JobH5Controller】获取职位列表，" + 
-                "每页数量: " + request.getPageSize() + 
-                ", 使用游标: " + (Boolean.TRUE.equals(request.getUseCursor()) ? "是" : "否") +
-                ", 最大游标: " + request.getMaxCursor() +
-                ", 最小游标: " + request.getMinCursor());
-        
-        // 调用服务获取结果
-        Object result = jobService.getJobList(request);
-        
-        // 根据返回类型进行不同的日志记录
-        if (result instanceof Page) {
-            Page<JobDetailOutputDto> pageResult = (Page<JobDetailOutputDto>) result;
-            System.out.println("【JobH5Controller】获取职位列表结果(传统分页)，当前页: " + pageResult.getCurrent() + 
-                    ", 总页数: " + pageResult.getPages() + 
-                    ", 总记录数: " + pageResult.getTotal() + 
-                    ", 本页记录数: " + pageResult.getRecords().size());
-        } else if (result instanceof CursorResponseDto) {
-            CursorResponseDto<JobDetailOutputDto> cursorResult = (CursorResponseDto<JobDetailOutputDto>) result;
-            System.out.println("【JobH5Controller】获取职位列表结果(游标分页)，记录数: " + cursorResult.getRecords().size() + 
-                    ", 下一个maxCursor: " + cursorResult.getNextMaxCursor() +
-                    ", 下一个minCursor: " + cursorResult.getNextMinCursor() +
-                    ", 是否有更多历史内容: " + cursorResult.getHasMoreHistory() +
-                    ", 是否有更多新内容: " + cursorResult.getHasMoreNew());
-        }
-        
-        return R.success(result);
-    }
-    
-    // 添加GET请求支持
-    @NoAuth
     @GetMapping("list")
-    @Operation(summary = "获取职位列表(GET)", description = "通过GET请求获取职位列表，支持传统分页")
-    public R<?> getJobListByGet(
+    @Operation(summary = "获取职位列表", description = "使用游标分页获取职位列表")
+    public R<?> getJobList(
             @RequestParam(value = "pageSize", defaultValue = "3") Integer pageSize,
-            @RequestParam(value = "useCursor", required = false) Boolean useCursor,
             @RequestParam(value = "maxCursor", required = false) String maxCursor,
             @RequestParam(value = "minCursor", required = false) String minCursor) {
         
         // 构建请求DTO
         JobListInputDto request = new JobListInputDto();
         request.setPageSize(pageSize);
-        request.setUseCursor(useCursor);
         request.setMaxCursor(maxCursor);
         request.setMinCursor(minCursor);
         
-        // 调用已有方法处理
-        return getJobList(request);
+        // 添加日志，方便调试分页问题
+        System.out.println("【JobH5Controller】获取职位列表，" + 
+                "每页数量: " + request.getPageSize() + 
+                ", 使用游标分页" +
+                ", 最大游标: " + request.getMaxCursor() +
+                ", 最小游标: " + request.getMinCursor());
+        
+        // 直接调用游标分页方法
+        CursorResponseDto<JobDetailOutputDto> result = jobService.getJobsWithCursor(request);
+        
+        // 记录游标分页结果
+        System.out.println("【JobH5Controller】获取职位列表结果(游标分页)，记录数: " + result.getRecords().size() + 
+                ", 下一个maxCursor: " + result.getNextMaxCursor() +
+                ", 下一个minCursor: " + result.getNextMinCursor() +
+                ", 是否有更多历史内容: " + result.getHasMoreHistory() +
+                ", 是否有更多新内容: " + result.getHasMoreNew());
+        
+        return R.success(result);
     }
     
     /**
      * 获取当前用户自己发布的职位列表 (仅支持游标分页)
      */
     @PostMapping("myPosts")
-    @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，强制使用游标分页")
+    @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，使用游标分页")
     public R<?> getMyPosts(@RequestBody JobListInputDto request) {
         // 获取当前用户ID
         String userId = UserContextHolder.getUid();
         if (userId == null) {
             return R.error("用户未登录");
         }
-        
-        // 确保使用游标分页
-        request.setUseCursor(true);
         
         // 确保页大小合理，如果客户端未指定或值不合理则使用默认值
         if (request.getPageSize() == null || request.getPageSize() <= 0) {

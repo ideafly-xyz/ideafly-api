@@ -46,24 +46,9 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     private UserFollowService userFollowService;
 
     /**
-     * 获取职位列表 - 支持传统分页和基于游标的分页
-     */
-    public Object getJobList(JobListInputDto request) {
-        long startTime = System.currentTimeMillis();
-        System.out.println("【性能日志】开始获取职位列表 - 参数: " + request);
-        
-        // 检查是否使用游标分页
-        if (Boolean.TRUE.equals(request.getUseCursor())) {
-            return getJobsWithCursor(request);
-        } else {
-            return getJobsWithTraditionalPaging(request);
-        }
-    }
-    
-    /**
      * 使用游标分页获取职位列表
      */
-    private CursorResponseDto<JobDetailOutputDto> getJobsWithCursor(JobListInputDto request) {
+    public CursorResponseDto<JobDetailOutputDto> getJobsWithCursor(JobListInputDto request) {
         System.out.println("【性能日志】使用游标分页获取职位列表");
         long startTime = System.currentTimeMillis();
         
@@ -696,14 +681,11 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     }
 
     /**
-     * 获取用户发布的职位（仅支持游标分页）
+     * 获取用户发布的职位列表
      */
     public Object getUserPosts(JobListInputDto request, String userId) {
         System.out.println("【性能日志】获取用户职位列表 - 用户ID: " + userId);
         long startTime = System.currentTimeMillis();
-        
-        // 强制使用游标分页
-        request.setUseCursor(true);
         
         // 记录原始游标参数，便于调试
         String originalMaxCursor = request.getMaxCursor();

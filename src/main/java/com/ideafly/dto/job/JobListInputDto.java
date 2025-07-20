@@ -7,9 +7,6 @@ import lombok.Data;
 @Data
 @Schema(description = "获取职位列表请求")
 public class JobListInputDto extends PageBaseInputDto {
-    @Schema(description = "是否使用游标分页")
-    private Boolean useCursor = true;
-    
     @Schema(description = "最大游标（用于获取比此更早的数据）")
     private String maxCursor;
     
