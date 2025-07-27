@@ -1,11 +1,10 @@
-package com.ideafly.mapper;
+package com.ideafly.mapper.users;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.ideafly.model.Jobs;
 import com.ideafly.model.users.Users;
 
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface JobsMapper extends BaseMapper<Jobs> {
+public interface UsersMapper extends BaseMapper<Users> {
 }

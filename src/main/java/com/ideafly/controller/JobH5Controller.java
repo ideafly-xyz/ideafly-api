@@ -5,9 +5,10 @@ import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.job.*;
 import com.ideafly.model.Jobs;
-import com.ideafly.service.CommentService;
-import com.ideafly.service.JobsService;
-import com.ideafly.service.JobLikesService;
+import com.ideafly.service.impl.JobsService;
+import com.ideafly.service.impl.interact.CommentService;
+import com.ideafly.service.impl.interact.JobLikesService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;

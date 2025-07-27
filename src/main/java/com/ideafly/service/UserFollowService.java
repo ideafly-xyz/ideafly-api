@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.ideafly.dto.user.UserFollowInputDto;
 import com.ideafly.dto.user.UserFollowStatusDto;
 import com.ideafly.dto.user.UserFollowStatsDto;
-import com.ideafly.model.UserFollow;
-import com.ideafly.model.Users;
+import com.ideafly.model.users.UserFollow;
+import com.ideafly.model.users.Users;
 
 import java.util.List;
 

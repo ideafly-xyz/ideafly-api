@@ -1,6 +1,5 @@
 package com.ideafly.dto.job;
 
-import com.ideafly.dto.PageBaseInputDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 

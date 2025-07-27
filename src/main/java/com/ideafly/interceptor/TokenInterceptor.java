@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideafly.common.ErrorCode;
 import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
+import com.ideafly.dto.auth.LoginUser;
 import com.ideafly.dto.user.UserDto;
-import com.ideafly.entity.dto.LoginUser;
-import com.ideafly.service.TokenManagerService;
+import com.ideafly.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class TokenInterceptor implements HandlerInterceptor {
 
-    private final TokenManagerService tokenManagerService;
+    private final AuthService authService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 静态资源路径正则
@@ -106,7 +106,7 @@ public class TokenInterceptor implements HandlerInterceptor {
             log.debug("提取的token: {}", token);
             
             // 验证token并获取用户信息
-            LoginUser loginUser = tokenManagerService.getUserByToken(token);
+            LoginUser loginUser = authService.getUserByToken(token);
             
             if (loginUser == null) {
                 // token无效或过期

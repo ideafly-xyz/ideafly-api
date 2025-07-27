@@ -3,10 +3,9 @@ package com.ideafly.utils;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.ideafly.dto.PageBaseInputDto;
+import com.ideafly.dto.job.PageBaseInputDto;
 
 import java.util.List;
-import java.util.Objects;
 
 public class PageUtil {
     public static <T> Page<T> build(int pageNum, int pageSize, Long totalCount, List<T> items) {
