@@ -3,7 +3,6 @@ package com.ideafly.controller.auth;
 import cn.hutool.core.bean.BeanUtil;
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
-import com.ideafly.dto.auth.LoginSuccessOutputDto;
 import com.ideafly.dto.auth.SmsLoginInputDto;
 import com.ideafly.dto.user.UserDto;
 import com.ideafly.model.users.Users;
@@ -40,16 +39,8 @@ public class SmsH5Controller {
 
     @NoAuth
     @PostMapping("/login")
-    public R<LoginSuccessOutputDto> login(@RequestBody SmsLoginInputDto dto) {
-        if (smsService.verifyCode(dto.getVerificationCode())) {
-            Users user = usersService.getOrAddByMobile(dto.getPhoneNumber());
-            String userId = user.getId();
-            LoginSuccessOutputDto outputDto = new LoginSuccessOutputDto();
-            outputDto.setAccessToken(jwtUtil.generateToken(userId, false));
-            outputDto.setRefreshToken(jwtUtil.generateToken(userId, true));
-            outputDto.setUserInfo(BeanUtil.copyProperties(user, UserDto.class));
-            return R.success(outputDto);
-        }
+    public R<String> login(@RequestBody SmsLoginInputDto dto) {
+
         return R.error("验证码错误");
     }
 }

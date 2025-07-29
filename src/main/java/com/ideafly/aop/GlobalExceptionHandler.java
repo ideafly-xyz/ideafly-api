@@ -113,17 +113,24 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * json 格式错误 缺少请求体
+     * 处理参数类型不匹配和参数绑定异常（如表单校验失败）
      */
-    @ResponseBody
-    @ExceptionHandler({TypeMismatchException.class, BindException.class})
+    @ResponseBody // 返回值会自动序列化为JSON响应给前端
+    @ExceptionHandler({TypeMismatchException.class, BindException.class}) // 捕获参数类型不匹配和参数绑定异常
     public R<?> paramExceptionHandler(Exception e) {
+        // 如果异常是参数绑定异常（如表单校验失败）
         if (e instanceof BindException) {
+            // 如果异常是方法参数校验失败（如 @Valid 注解校验失败）
             if (e instanceof MethodArgumentNotValidException) {
+                // 获取所有字段的校验错误信息
                 List<FieldError> fieldErrors = ((MethodArgumentNotValidException) e).getBindingResult().getFieldErrors();
+                // 提取每个字段的默认错误消息，组成一个字符串列表
                 List<String> msgList = fieldErrors.stream().map(FieldError::getDefaultMessage).collect(Collectors.toList());
+                // 将所有错误消息用逗号拼接成一个字符串
                 String errorMessage = String.join(",", msgList);
+                // 打印警告日志，内容为所有校验失败的提示
                 log.warn("参数验证失败: {}", errorMessage);
+                // 返回一个带有错误码和错误消息的响应对象
                 return R.error(ErrorCode.PARAM_ERROR.getCode(), errorMessage);
             }
             List<FieldError> fieldErrors = ((BindException) e).getFieldErrors();

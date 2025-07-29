@@ -28,6 +28,7 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "Telegram登录", description = "使用Telegram认证登录，只返回refreshToken")
     public R<Map<String, String>> login(@Valid @RequestBody TelegramAuthDto authData) {
+        log.info("收到Telegram登录请求参数: {}", authData); // 新增日志
         try {
             Map<String, String> result = authService.telegramLogin(authData);
             return R.success(result);
