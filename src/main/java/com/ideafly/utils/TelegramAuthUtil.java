@@ -31,14 +31,14 @@ public class TelegramAuthUtil {
             // 1. 检查必要字段是否存在
             if (!StringUtils.hasText(telegramAuthDto.getId()) || 
                 !StringUtils.hasText(telegramAuthDto.getFirstName()) || 
-                !StringUtils.hasText(telegramAuthDto.getAuthDate()) ||
+                telegramAuthDto.getAuthDate() == null ||
                 !StringUtils.hasText(telegramAuthDto.getHash())) {
                 log.error("Telegram数据缺少必要字段");
                 return false;
             }
             
             // 2. 检查auth_date是否过期（24小时有效）
-            long authDate = Long.parseLong(telegramAuthDto.getAuthDate());
+            long authDate = telegramAuthDto.getAuthDate();
             long currentTime = System.currentTimeMillis() / 1000;
             if (currentTime - authDate > 86400) {
                 log.error("Telegram认证数据已过期: authDate={}, currentTime={}", authDate, currentTime);
@@ -47,14 +47,11 @@ public class TelegramAuthUtil {
             
             // 3. 创建数据字符串，排除hash字段
             Map<String, String> dataToCheck = new TreeMap<>();
-            dataToCheck.put("auth_date", telegramAuthDto.getAuthDate());
+            dataToCheck.put("auth_date", String.valueOf(telegramAuthDto.getAuthDate()));
             dataToCheck.put("first_name", telegramAuthDto.getFirstName());
             dataToCheck.put("id", telegramAuthDto.getId());
             
             // 添加可选字段
-            if (StringUtils.hasText(telegramAuthDto.getLastName())) {
-                dataToCheck.put("last_name", telegramAuthDto.getLastName());
-            }
             if (StringUtils.hasText(telegramAuthDto.getUsername())) {
                 dataToCheck.put("username", telegramAuthDto.getUsername());
             }

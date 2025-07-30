@@ -1,50 +1,30 @@
 package com.ideafly.dto.auth;
 
-import javax.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
-/**
- * Telegram认证数据传输对象
- */
+import javax.validation.constraints.NotNull;
+
 @Data
 public class TelegramAuthDto {
-
-    /**
-     * Telegram用户ID
-     */
-    @NotBlank(message = "Telegram用户ID不能为空")
+    @NotNull(message = "id不能为空")
     private String id;
-
-    /**
-     * 用户名
-     */
-    @NotBlank(message = "名字不能为空")
+    
+    @NotNull(message = "first_name不能为空")
+    @JsonProperty("first_name")
     private String firstName;
 
-    /**
-     * 姓氏（可选）
-     */
-    private String lastName;
-
-    /**
-     * Telegram用户名（可选）
-     */
+    @JsonProperty("username")
     private String username;
 
-    /**
-     * 用户头像URL（可选）
-     */
+    @JsonProperty("photo_url")
     private String photoUrl;
-
-    /**
-     * Telegram认证时间戳
-     */
-    @NotBlank(message = "认证时间不能为空")
-    private String authDate;
-
-    /**
-     * 数据哈希值
-     */
-    @NotBlank(message = "哈希值不能为空")
+    
+    @NotNull(message = "auth_date不能为空")
+    @JsonProperty("auth_date")
+    private Long authDate;
+    
+    @NotNull(message = "hash不能为空")
+    @JsonProperty("hash")
     private String hash;
-}
+} 

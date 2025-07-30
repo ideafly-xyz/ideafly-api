@@ -165,7 +165,7 @@ public class AuthServiceImpl implements AuthService {
             // 设置Telegram相关信息
             user.setTelegramId(authData.getId());
             user.setUsername(authData.getFirstName() + 
-                             (authData.getLastName() != null ? " " + authData.getLastName() : ""));
+                             (authData.getUsername() != null ? " " + authData.getUsername() : ""));
             
             // 设置头像
             if (authData.getPhotoUrl() != null) {
