@@ -66,7 +66,7 @@ public class JwtUtil {
      * 从令牌中获取所有声明
      */
     private Claims extractAllClaims(String token) {
-        return Jwts.parser().setSigningKey(secretKey).parseClaimsJws(token).getBody();
+        return Jwts.parser().setSigningKey(getSignInKey()).parseClaimsJws(token).getBody();
     }
 
     /**
@@ -85,9 +85,38 @@ public class JwtUtil {
     public String generateToken(String userId, boolean isRefreshToken) {
         Map<String, Object> claims = new HashMap<>();
         if (isRefreshToken) {
-            claims.put("tokenType", "refresh"); // 只保留tokenType字段
+            claims.put("tokenType", "refresh");
+        } else {
+            claims.put("tokenType", "access");
         }
-        return createToken(claims, userId, isRefreshToken ? refreshExpiration : jwtExpiration);
+        
+        long expiration = isRefreshToken ? refreshExpiration : jwtExpiration;
+        String token = createToken(claims, userId, expiration);
+        
+        // 添加详细的token生成日志
+        Date now = new Date();
+        Date expirationDate = new Date(System.currentTimeMillis() + expiration);
+        String tokenType = isRefreshToken ? "refreshToken" : "accessToken";
+        
+        // 解析JWT内容并输出详细日志
+        try {
+            Claims parsedClaims = extractAllClaims(token);
+            Map<String, Object> jwtInfo = new HashMap<>();
+            jwtInfo.put("header", Map.of("alg", "HS256", "typ", "JWT"));
+            jwtInfo.put("payload", Map.of(
+                "sub", parsedClaims.getSubject(),
+                "iat", parsedClaims.getIssuedAt(),
+                "exp", parsedClaims.getExpiration(),
+                "tokenType", parsedClaims.get("tokenType", String.class)
+            ));
+            jwtInfo.put("signature", "***"); // 签名部分不输出具体内容
+            
+            log.info("JWT解析详情 - {}: {}", tokenType, jwtInfo);
+        } catch (Exception e) {
+            log.warn("解析JWT失败: {}", e.getMessage());
+        }
+        
+        return token;
     }
 
     /**
@@ -225,7 +254,13 @@ public class JwtUtil {
                     ttl,
                     TimeUnit.MILLISECONDS
                 );
-                log.info("Token已加入黑名单，剩余有效期: {}ms", ttl);
+
+                // 截取token的前8位和后8位用于日志显示  
+    String tokenForLog = token.length() > 16 ?   
+token.substring(0, 8) + "..." + token.substring(token.length() - 8) : token;  
+
+    log.info("refreshToken已加入黑名单，redis key: {}{}, value: {}, redis key 剩余有效期: {}ms",   TOKEN_BLACKLIST_PREFIX, tokenForLog, "1", ttl);
+
             }
         } catch (Exception e) {
             log.error("使token失效时出错", e);

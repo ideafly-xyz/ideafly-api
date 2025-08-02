@@ -26,7 +26,6 @@ public class TelegramAuthUtil {
      */
     public static boolean verify(TelegramAuthDto telegramAuthDto, String botToken) {
         try {
-            log.info("开始验证Telegram数据: {}", telegramAuthDto);
             
             // 1. 检查必要字段是否存在
             if (!StringUtils.hasText(telegramAuthDto.getId()) || 
@@ -90,7 +89,7 @@ public class TelegramAuthUtil {
             // 6. 比较计算的哈希值与收到的哈希值
             boolean result = calculatedHashHex.toString().equals(telegramAuthDto.getHash());
             if (!result) {
-                log.error("Telegram哈希验证失败");
+                log.error("Telegram哈希验证失败 - 计算的哈希: {}, 收到的哈希: {}", calculatedHashHex, telegramAuthDto.getHash());
             }
             return result;
         } catch (NoSuchAlgorithmException e) {

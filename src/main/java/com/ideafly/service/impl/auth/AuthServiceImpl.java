@@ -3,7 +3,6 @@ package com.ideafly.service.impl.auth;
 import com.ideafly.dto.auth.LoginUser;
 import com.ideafly.dto.auth.TelegramAuthDto;
 import com.ideafly.model.users.Users;
-import com.ideafly.service.AuthService;
 import com.ideafly.utils.JwtUtil;
 import com.ideafly.utils.TelegramAuthUtil;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +21,7 @@ import java.util.Map;
  */
 @Service
 @Slf4j
-public class AuthServiceImpl implements AuthService {
+public class AuthServiceImpl {
     
     @Value("${telegram.bot.token}")
     private String botToken;
@@ -33,7 +32,6 @@ public class AuthServiceImpl implements AuthService {
     @Resource
     private JwtUtil jwtUtil;
     
-    @Override
     public Map<String, String> telegramLogin(TelegramAuthDto authData) {
         // 验证Telegram登录数据
         boolean isValid = TelegramAuthUtil.verify(authData, botToken);
@@ -45,21 +43,21 @@ public class AuthServiceImpl implements AuthService {
         // 查找或创建用户
         Users user = getUserByTelegramId(authData);
         
-        // 只生成refreshToken
+        // 生成accessToken和refreshToken
         String userId = user.getId();
+        String accessToken = jwtUtil.generateToken(userId, false);
         String refreshToken = jwtUtil.generateToken(userId, true);
         
         Map<String, String> result = new HashMap<>();
+        result.put("accessToken", accessToken);
         result.put("refreshToken", refreshToken);
         
-        log.info("用户登录成功, userId: {}", userId);
+        log.info("用户登录成功, userId: {}, 返回accessToken和refreshToken", userId);
         
         return result;
     }
     
-    @Override
     public Map<String, String> getAccessToken(String refreshToken) {
-        log.info("收到获取accessToken请求");
         
         if (refreshToken == null || refreshToken.isEmpty()) {
             log.warn("refreshToken为空");
@@ -68,7 +66,6 @@ public class AuthServiceImpl implements AuthService {
         
         try {
             String userId = jwtUtil.extractUserIdIgnoreExpired(refreshToken);
-            log.info("从refreshToken提取的userId: {}", userId);
             
             // 验证refreshToken是否有效 (包含过期验证)
             if (!jwtUtil.isRefreshTokenValid(refreshToken, userId)) { 
@@ -76,15 +73,20 @@ public class AuthServiceImpl implements AuthService {
                 throw new RuntimeException("refreshToken无效或已过期");
             }
             
-            log.info("refreshToken有效，正在生成新的accessToken");
+            log.info("refreshToken有效，正在生成新的accessToken和refreshToken");
             
-            // 生成新的accessToken
+            // 将旧的refreshToken加入黑名单
+            jwtUtil.invalidateRefreshToken(refreshToken);
+            
+            // 生成新的accessToken和refreshToken
             String newAccessToken = jwtUtil.generateToken(userId, false);
+            String newRefreshToken = jwtUtil.generateToken(userId, true);
             
             Map<String, String> result = new HashMap<>();
             result.put("accessToken", newAccessToken);
+            result.put("refreshToken", newRefreshToken);
             
-            log.info("成功生成新的accessToken");
+            log.info("成功生成新的accessToken和refreshToken");
             
             return result;
         } catch (Exception e) {
@@ -93,7 +95,6 @@ public class AuthServiceImpl implements AuthService {
         }
     }
     
-    @Override
     public LoginUser getUserByToken(String token) {
         if (token == null || token.isEmpty()) {
             log.warn("Token为空");
@@ -132,7 +133,6 @@ public class AuthServiceImpl implements AuthService {
         }
     }
     
-    @Override
     public boolean validateToken(String token) {
         // 先检查token是否在黑名单中
         if (jwtUtil.isTokenBlacklisted(token)) {

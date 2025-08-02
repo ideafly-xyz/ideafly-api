@@ -6,7 +6,7 @@ import com.ideafly.common.R;
 import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.auth.LoginUser;
 import com.ideafly.dto.user.UserDto;
-import com.ideafly.service.AuthService;
+import com.ideafly.service.impl.auth.AuthServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class TokenInterceptor implements HandlerInterceptor {
 
-    private final AuthService authService;
+    private final AuthServiceImpl authService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 静态资源路径正则
