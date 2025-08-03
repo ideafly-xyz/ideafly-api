@@ -3,7 +3,6 @@ package com.ideafly.service.impl.users;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.user.UpdateUserInputDto;
 import com.ideafly.mapper.users.UsersMapper;
 import com.ideafly.model.users.Users;
@@ -23,7 +22,7 @@ public class UsersService extends ServiceImpl<UsersMapper, Users> {
         return this.lambdaQuery().eq(Users::getMobile, mobile).one();
     }
 
-    public void updateUser(UpdateUserInputDto userDto) {
+    public void updateUser(UpdateUserInputDto userDto, String userId) {
         System.out.println("【服务调试日志】接收到的UpdateUserInputDto: " + userDto);
         System.out.println("【服务调试日志】个人简介personalBio原始值: " + userDto.getPersonalBio());
         
@@ -47,7 +46,7 @@ public class UsersService extends ServiceImpl<UsersMapper, Users> {
             System.out.println("【服务调试日志】personalBio为null，不进行映射");
         }
         
-        users.setId(UserContextHolder.getUid());
+        users.setId(userId);
         boolean updated = update(users, new UpdateWrapper<Users>().eq("id", users.getId()));
         System.out.println("【服务调试日志】数据库更新结果: " + updated);
     }

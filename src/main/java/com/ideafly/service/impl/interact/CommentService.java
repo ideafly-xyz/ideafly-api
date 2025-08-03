@@ -2,7 +2,6 @@ package com.ideafly.service.impl.interact;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.interact.ChildCommentCursorDto;
 import com.ideafly.dto.interact.JobCommentInputDto;
 import com.ideafly.dto.interact.JobCommentPageDto;
@@ -42,9 +41,8 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
      * 添加评论
      * @return 返回新创建的评论ID
      */
-    public Integer addComment(JobCommentInputDto dto) {
+    public Integer addComment(JobCommentInputDto dto, String userId) {
         // 获取当前登录用户ID
-        String userId = UserContextHolder.getUid();
         if (userId == null) {
             throw new IllegalArgumentException("用户未登录");
         }

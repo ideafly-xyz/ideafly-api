@@ -1,7 +1,6 @@
 package com.ideafly.service.impl.users;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.user.UserFollowInputDto;
 import com.ideafly.dto.user.UserFollowStatusDto;
 import com.ideafly.mapper.users.UserFollowMapper;
@@ -26,6 +25,95 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
     private UsersService usersService;
 
     /**
+     * 关注用户
+     */
+    public void followUser(String userId, String targetUserId) {
+        if (targetUserId == null) {
+            throw new IllegalArgumentException("被关注者ID不能为空");
+        }
+        
+        // 不允许关注自己
+        if (Objects.equals(userId, targetUserId)) {
+            throw new IllegalArgumentException("不能关注自己");
+        }
+        
+        // 检查被关注的用户是否存在
+        Users followedUser = usersService.getById(targetUserId);
+        if (followedUser == null) {
+            throw new IllegalArgumentException("被关注的用户不存在");
+        }
+        
+        // 查找是否已存在关注记录
+        UserFollow userFollow = this.lambdaQuery()
+                .eq(UserFollow::getFollowerId, userId)
+                .eq(UserFollow::getFollowedId, targetUserId)
+                .one();
+        
+        // 如果记录不存在，创建新的关注关系
+        if (userFollow == null) {
+            userFollow = new UserFollow();
+            userFollow.setFollowerId(userId);
+            userFollow.setFollowedId(targetUserId);
+            userFollow.setCreatedAt(new Date());
+            userFollow.setStatus(1); // 激活状态
+            this.save(userFollow);
+        } else if (userFollow.getStatus() == 0) {
+            // 如果记录存在但状态为0，激活关注状态
+            userFollow.setStatus(1);
+            this.updateById(userFollow);
+        }
+    }
+
+    /**
+     * 取消关注用户
+     */
+    public void unfollowUser(String userId, String targetUserId) {
+        if (targetUserId == null) {
+            throw new IllegalArgumentException("被关注者ID不能为空");
+        }
+        
+        // 查找关注记录
+        UserFollow userFollow = this.lambdaQuery()
+                .eq(UserFollow::getFollowerId, userId)
+                .eq(UserFollow::getFollowedId, targetUserId)
+                .one();
+        
+        if (userFollow != null && userFollow.getStatus() == 1) {
+            // 如果记录存在且状态为1，取消关注
+            userFollow.setStatus(0);
+            this.updateById(userFollow);
+        }
+    }
+
+    /**
+     * 获取粉丝用户ID列表
+     */
+    public List<String> getFollowersUserIds(String userId) {
+        return this.lambdaQuery()
+                .eq(UserFollow::getFollowedId, userId)
+                .eq(UserFollow::getStatus, 1)
+                .list()
+                .stream()
+                .map(UserFollow::getFollowerId)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 判断用户是否已关注某用户
+     */
+    public boolean isFollowing(String userId, String targetUserId) {
+        if (userId == null || targetUserId == null) {
+            return false;
+        }
+        long count = this.lambdaQuery()
+                .eq(UserFollow::getFollowerId, userId)
+                .eq(UserFollow::getFollowedId, targetUserId)
+                .eq(UserFollow::getStatus, 1)
+                .count();
+        return count > 0;
+    }
+
+    /**
      * 添加或取消关注
      */
     @Override
@@ -34,53 +122,19 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
             throw new IllegalArgumentException("未提供关注参数");
         }
         
-        String followerId = UserContextHolder.getUid();
         String followedId = dto.getFollowedId();
         
         if (followedId == null) {
             throw new IllegalArgumentException("被关注者ID不能为空");
         }
         
-        // 不允许关注自己
-        if (Objects.equals(followerId, followedId)) {
-            throw new IllegalArgumentException("不能关注自己");
-        }
-        
-        // 检查被关注的用户是否存在
-        Users followedUser = usersService.getById(followedId);
-        if (followedUser == null) {
-            throw new IllegalArgumentException("被关注的用户不存在");
-        }
-        
-        // 查找是否已存在关注记录
-        UserFollow userFollow = this.lambdaQuery()
-                .eq(UserFollow::getFollowerId, followerId)
-                .eq(UserFollow::getFollowedId, followedId)
-                .one();
-        
         // 构建返回对象
         UserFollowStatusDto result = new UserFollowStatusDto();
-        result.setFollowerId(followerId);
         result.setFollowedId(followedId);
         
-        // 如果记录不存在，创建新的关注关系
-        if (userFollow == null) {
-            userFollow = new UserFollow();
-            userFollow.setFollowerId(followerId);
-            userFollow.setFollowedId(followedId);
-            userFollow.setCreatedAt(new Date());
-            userFollow.setStatus(1); // 激活状态
-            this.save(userFollow);
-            result.setFollowing(true);
-        } else {
-            // 如果记录存在，切换关注状态
-            int newStatus = userFollow.getStatus() == 1 ? 0 : 1;
-            userFollow.setStatus(newStatus);
-            this.updateById(userFollow);
-            result.setFollowing(newStatus == 1);
-        }
-        
-        return result;
+        // 这个方法需要重构，因为DTO中没有followerId
+        // 暂时保留原有逻辑，但需要传入followerId参数
+        throw new UnsupportedOperationException("此方法需要重构，请使用新的followUser/unfollowUser方法");
     }
 
     /**
@@ -89,16 +143,9 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      */
     @Override
     public boolean isFollowing(String followedId) {
-        String uid = UserContextHolder.getUid();
-        if (uid == null) {
-            return false;
-        }
-        long count = this.lambdaQuery()
-                .eq(UserFollow::getFollowerId, uid)
-                .eq(UserFollow::getFollowedId, followedId)
-                .eq(UserFollow::getStatus, 1)
-                .count();
-        return count > 0;
+        // 这个方法需要重构，因为无法获取当前用户ID
+        // 暂时保留原有逻辑，但需要传入followerId参数
+        throw new UnsupportedOperationException("此方法需要重构，请使用新的isFollowing(String, String)方法");
     }
     
     /**
@@ -125,12 +172,9 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
     @Override
     public UserFollowStatsDto getUserFollowStats(String userId) {
         // 当userId为null时，尝试从认证信息获取用户ID
-        // 如果认证信息也没有，则抛出异常提示需要userId参数
+        // 如果userId为null，则抛出异常提示需要userId参数
         if (userId == null) {
-            userId = UserContextHolder.getUid().toString();
-            if (userId == null) {
-                throw new IllegalArgumentException("请提供要查询的用户ID");
-            }
+            throw new IllegalArgumentException("请提供要查询的用户ID");
         }
         
         // 获取用户信息
@@ -189,7 +233,7 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
     @Override
     public List<Users> getUserFollowing(String userId) {
         if (userId == null) {
-            userId = UserContextHolder.getUid();
+            throw new IllegalArgumentException("请提供要查询的用户ID");
         }
         List<String> followingIds = this.lambdaQuery()
                 .eq(UserFollow::getFollowerId, userId)
@@ -210,7 +254,7 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
     @Override
     public List<Users> getUserFollowers(String userId) {
         if (userId == null) {
-            userId = UserContextHolder.getUid();
+            throw new IllegalArgumentException("请提供要查询的用户ID");
         }
         List<String> followerIds = this.lambdaQuery()
                 .eq(UserFollow::getFollowedId, userId)
@@ -231,7 +275,7 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
     @Override
     public List<Users> getMutualFollows(String userId) {
         if (userId == null) {
-            userId = UserContextHolder.getUid();
+            throw new IllegalArgumentException("请提供要查询的用户ID");
         }
         List<String> followingIds = this.lambdaQuery()
                 .eq(UserFollow::getFollowerId, userId)

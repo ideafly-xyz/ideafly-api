@@ -3,7 +3,7 @@ package com.ideafly.controller.interact;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
-import com.ideafly.common.UserContextHolder;
+import com.ideafly.common.RequestUtils;
 import com.ideafly.dto.interact.JobLikeInputDto;
 import com.ideafly.dto.job.JobDetailOutputDto;
 import com.ideafly.dto.job.JobListInputDto;
@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,8 +32,9 @@ public class PostLikesController {
      */
     @PostMapping("/list")
     @Operation(summary = "获取点赞职位", description = "获取当前用户点赞的所有职位")
-    public R<Page<JobDetailOutputDto>> getLikedJobs(@RequestBody JobListInputDto request) {
-        return R.success(jobLikesService.getUserLikedJobs(request));
+    public R<Page<JobDetailOutputDto>> getLikedJobs(@RequestBody JobListInputDto request, HttpServletRequest httpRequest) {
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        return R.success(jobLikesService.getUserLikedJobs(request, userId));
     }
 
     /**
@@ -40,10 +42,11 @@ public class PostLikesController {
      */
     @PostMapping("/toggle")
     @Operation(summary = "点赞", description = "点赞或取消点赞功能")
-    public R<Boolean> toggleLike(@RequestBody @Valid JobLikeInputDto request) {
-        System.out.println("收到点赞请求 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike() + ", 用户ID: " + UserContextHolder.getUid());
+    public R<Boolean> toggleLike(@RequestBody @Valid JobLikeInputDto request, HttpServletRequest httpRequest) {
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        System.out.println("收到点赞请求 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike() + ", 用户ID: " + userId);
         try {
-            jobLikesService.addOrRemoveLike(request);
+            jobLikesService.addOrRemoveLike(request, userId);
             System.out.println("点赞操作成功 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike());
             return R.success(Boolean.TRUE);
         } catch (Exception e) {
@@ -59,14 +62,14 @@ public class PostLikesController {
     @NoAuth
     @GetMapping("/count")
     @Operation(summary = "获取用户总点赞数", description = "获取指定用户获得的总点赞数")
-    public R<Map<String, Object>> getUserTotalLikes(@RequestParam(value = "userId", required = false) String userId) {
+    public R<Map<String, Object>> getUserTotalLikes(@RequestParam(value = "userId", required = false) String userId, HttpServletRequest httpRequest) {
         long startTime = System.currentTimeMillis();
         System.out.println("====== 获取用户总点赞数 API 开始处理 ======");
         System.out.println("请求参数: userId=" + userId);
         String targetUserId = userId;
         // 如果未指定用户ID，则使用当前登录用户ID
         if (targetUserId == null) {
-            targetUserId = UserContextHolder.getUid();
+            targetUserId = RequestUtils.getCurrentUserId(httpRequest);
             System.out.println("使用当前登录用户ID: " + targetUserId);
             if (targetUserId == null) {
                 System.out.println("错误: 未登录且未指定用户ID");

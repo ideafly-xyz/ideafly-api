@@ -2,7 +2,6 @@ package com.ideafly.service.impl.interact;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.interact.JobFavoriteInputDto;
 import com.ideafly.dto.job.CursorResponseDto;
 import com.ideafly.dto.job.JobListInputDto;
@@ -37,22 +36,21 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
     /**
      * 获取用户收藏的职位列表
      */
-    public Object getUserFavoriteJobs(JobListInputDto request) {
+    public Object getUserFavoriteJobs(JobListInputDto request, String userId) {
         long startTime = System.currentTimeMillis();
         System.out.println("【性能日志】开始获取用户收藏职位列表 - 参数: " + request);
-            return getUserFavoriteJobsWithCursor(request);
+            return getUserFavoriteJobsWithCursor(request, userId);
         
     }
     
     /**
      * 使用游标分页获取用户收藏的职位列表
      */
-    private CursorResponseDto<JobDetailOutputDto> getUserFavoriteJobsWithCursor(JobListInputDto request) {
+    private CursorResponseDto<JobDetailOutputDto> getUserFavoriteJobsWithCursor(JobListInputDto request, String userId) {
         System.out.println("【性能日志】使用游标分页获取用户收藏职位列表");
         long startTime = System.currentTimeMillis();
         
         // 获取当前用户ID
-        String userId = UserContextHolder.getUid();
         if (userId == null) {
             // 用户未登录，返回空收藏列表
             System.out.println("【性能日志】用户未登录，返回空收藏列表");
@@ -342,8 +340,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
     /**
      * 收藏或者取消收藏
      */
-    public void addOrRemoveFavorite(JobFavoriteInputDto dto) {
-        String uid = UserContextHolder.getUid();
+    public void addOrRemoveFavorite(JobFavoriteInputDto dto, String userId) {
         // 验证职位是否存在 (可选，如果业务需要)
         Jobs job = jobsService.getById(dto.getJobId());
         if (job == null) {
@@ -352,11 +349,11 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         }
         // 直接使用一条SQL完成插入或更新，实现原子操作
         int status = Objects.equals(dto.getIsFavorite(), 1) ? 1 : 0;
-        int affected = this.baseMapper.insertOrUpdateFavoriteStatus(dto.getJobId(), uid, status);
+        int affected = this.baseMapper.insertOrUpdateFavoriteStatus(dto.getJobId(), userId, status);
         // 记录操作结果
         String actionName = status == 1 ? "收藏" : "取消收藏";
         System.out.println(actionName + "操作完成，职位ID: " + dto.getJobId() + 
-                           ", 用户ID: " + uid + 
+                           ", 用户ID: " + userId + 
                            ", 状态: " + status +
                            ", 影响行数: " + affected);
     }
@@ -364,14 +361,12 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
     /**
      * 判断职位是否被当前用户收藏
      */
-    public boolean isJobFavorite(Integer jobId) {
-        // 获取当前用户ID
-        String uid = UserContextHolder.getUid();
+    public boolean isJobFavorite(Integer jobId, String userId) {
         // 如果有用户ID，检查该用户是否收藏了此职位
-        if (Objects.nonNull(uid)) {
+        if (Objects.nonNull(userId)) {
             return this.lambdaQuery()
                 .eq(JobFavorite::getJobId, jobId)
-                .eq(JobFavorite::getUserId, uid)
+                .eq(JobFavorite::getUserId, userId)
                 .eq(JobFavorite::getStatus, 1) // 只检查有效收藏
                 .exists();
         }

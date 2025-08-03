@@ -93,9 +93,6 @@ public class JwtUtil {
         long expiration = isRefreshToken ? refreshExpiration : jwtExpiration;
         String token = createToken(claims, userId, expiration);
         
-        // 添加详细的token生成日志
-        Date now = new Date();
-        Date expirationDate = new Date(System.currentTimeMillis() + expiration);
         String tokenType = isRefreshToken ? "refreshToken" : "accessToken";
         
         // 解析JWT内容并输出详细日志
@@ -135,10 +132,7 @@ public class JwtUtil {
     /**
      * 验证令牌
      */
-    public Boolean validateToken(String token, String userId) {
-        final String extractedUserId = extractUserId(token);
-        return (extractedUserId.equals(userId) && !isTokenExpired(token));
-    }
+
 
     public Key getSignInKey() {
         // 替换 '-' 和 '_' 为 '+' 和 '/'
@@ -171,7 +165,7 @@ public class JwtUtil {
     }
 
     /**
-     * 验证用户ID的令牌（与validateToken相同，但命名更符合TokenInterceptor需求）
+     * 验证用户ID的令牌（包含黑名单检查、userId匹配和过期检查）
      */
     public boolean isTokenValid(String token, String userId) {
         if (isTokenBlacklisted(token)) {

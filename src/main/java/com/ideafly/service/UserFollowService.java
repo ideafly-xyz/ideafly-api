@@ -15,6 +15,35 @@ import java.util.List;
 public interface UserFollowService extends IService<UserFollow> {
 
     /**
+     * 关注用户
+     * @param userId 关注者用户ID
+     * @param targetUserId 被关注者用户ID
+     */
+    void followUser(String userId, String targetUserId);
+
+    /**
+     * 取消关注用户
+     * @param userId 关注者用户ID
+     * @param targetUserId 被关注者用户ID
+     */
+    void unfollowUser(String userId, String targetUserId);
+
+    /**
+     * 获取粉丝用户ID列表
+     * @param userId 用户ID
+     * @return 粉丝用户ID列表
+     */
+    List<String> getFollowersUserIds(String userId);
+
+    /**
+     * 判断用户是否已关注某用户
+     * @param userId 关注者用户ID
+     * @param targetUserId 被关注者用户ID
+     * @return 如果已关注返回true，否则返回false
+     */
+    boolean isFollowing(String userId, String targetUserId);
+
+    /**
      * 添加或取消关注
      */
     UserFollowStatusDto toggleFollow(UserFollowInputDto dto);

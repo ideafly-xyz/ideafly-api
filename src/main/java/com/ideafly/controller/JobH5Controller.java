@@ -2,7 +2,7 @@ package com.ideafly.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
-import com.ideafly.common.UserContextHolder;
+import com.ideafly.common.RequestUtils;
 import com.ideafly.dto.job.*;
 import com.ideafly.model.Jobs;
 import com.ideafly.service.impl.JobsService;
@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 @Tag(name = "工作相关接口", description = "工作相关接口")
@@ -67,9 +68,9 @@ public class JobH5Controller {
      */
     @PostMapping("myPosts")
     @Operation(summary = "获取我的作品", description = "获取当前用户发布的所有作品，使用游标分页")
-    public R<?> getMyPosts(@RequestBody JobListInputDto request) {
+    public R<?> getMyPosts(@RequestBody JobListInputDto request, HttpServletRequest httpRequest) {
         // 获取当前用户ID
-        String userId = UserContextHolder.getUid();
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
         if (userId == null) {
             return R.error("用户未登录");
         }
@@ -132,22 +133,33 @@ public class JobH5Controller {
     @GetMapping("following")
     @Operation(summary = "获取关注用户帖子", description = "获取当前用户关注的人发布的帖子")
     public R<Page<JobDetailOutputDto>> getFollowingUserJobs(
-            @RequestParam(value = "pageSize", defaultValue = "20") Integer pageSize) {
+            @RequestParam(value = "pageSize", defaultValue = "20") Integer pageSize,
+            HttpServletRequest httpRequest) {
+        
+        // 获取当前用户ID
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        if (userId == null) {
+            return R.error("用户未登录");
+        }
         
         // 创建请求DTO
         JobListInputDto request = new JobListInputDto();
         request.setPageSize(pageSize);
         
         // 调用新的服务方法获取关注用户的帖子
-        return R.success(jobService.getFollowingUserJobs(request));
+        return R.success(jobService.getFollowingUserJobs(request, userId));
     }
     
     /**
      * 发布职位接口
      */
     @PostMapping("createJob")
-    public R<JobDetailOutputDto> createJob(@Valid @RequestBody CreateJobInputDto request) { //  使用 @Valid 注解开启参数校验
-        Jobs job = jobService.createJob(request);
+    public R<JobDetailOutputDto> createJob(@Valid @RequestBody CreateJobInputDto request, HttpServletRequest httpRequest) { //  使用 @Valid 注解开启参数校验
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        if (userId == null) {
+            return R.error("用户未登录");
+        }
+        Jobs job = jobService.createJob(request, userId);
         // 转换为包含完整信息的DTO
         JobDetailOutputDto jobDto = jobService.convertDto(job);
         return R.success(jobDto);

@@ -69,4 +69,5 @@
     <!-- 自定义业务日志级别 -->
     <logger name="com.ideafly.service" level="INFO"/>
     <logger name="com.ideafly.controller" level="INFO"/>
+    <logger name="com.ideafly.interceptor" level="DEBUG"/>
 </configuration>

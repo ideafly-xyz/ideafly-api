@@ -3,13 +3,11 @@ package com.ideafly.interceptor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideafly.common.ErrorCode;
 import com.ideafly.common.R;
-import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.auth.LoginUser;
-import com.ideafly.dto.user.UserDto;
 import com.ideafly.service.impl.auth.AuthServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
@@ -32,7 +30,7 @@ public class TokenInterceptor implements HandlerInterceptor {
     // 静态资源路径正则
     private static final Pattern RESOURCE_PATTERN = Pattern.compile(".*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$");
     
-    // 不需要验证token的路径
+    // token 白名单路径
     private static final String[] WHITE_LIST = {
             "/api/auth",    // Telegram登录相关
             "/api/user/refreshToken", // Token刷新
@@ -58,11 +56,12 @@ public class TokenInterceptor implements HandlerInterceptor {
     };
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) throws Exception {
         String url = request.getRequestURI();
         
         // 调试输出当前请求和拦截结果
         log.debug("TokenInterceptor处理URL: {}", url);
+
         
         // 快速判断是否为静态资源请求
         if (RESOURCE_PATTERN.matcher(url).matches()) {
@@ -118,17 +117,12 @@ public class TokenInterceptor implements HandlerInterceptor {
                     return true;
                 }
                 
-                responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "登录已过期，请重新登录"));
+                responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "无效的token，拒绝访问"));
                 return false;
             }
             
             // 将用户信息存入请求属性
             request.setAttribute("loginUser", loginUser);
-            
-            // 同时存入UserContextHolder，兼容现有代码
-            UserDto userDto = new UserDto();
-            BeanUtils.copyProperties(loginUser, userDto);
-            UserContextHolder.setUser(userDto);
             
             log.debug("用户认证成功: {}, URL: {}", loginUser.getUsername(), url);
             return true;
@@ -142,7 +136,7 @@ public class TokenInterceptor implements HandlerInterceptor {
                 return true;
             }
             
-            responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "登录已过期，请重新登录"));
+            responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), e.getMessage()));
             return false;
         }
     }
@@ -167,15 +161,14 @@ public class TokenInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) {
+    public void postHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, ModelAndView modelAndView) {
         // 无需操作
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+    public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, Exception ex) {
         // 请求结束后清理上下文
         request.removeAttribute("loginUser");
-        UserContextHolder.removeUser();
     }
 
     /**

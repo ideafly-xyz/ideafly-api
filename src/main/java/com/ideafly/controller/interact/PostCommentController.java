@@ -2,6 +2,7 @@ package com.ideafly.controller.interact;
 
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.R;
+import com.ideafly.common.RequestUtils;
 import com.ideafly.dto.interact.ChildCommentCursorDto;
 import com.ideafly.dto.interact.JobCommentInputDto;
 import com.ideafly.dto.interact.JobCommentPageDto;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,8 +30,12 @@ public class PostCommentController {
 
     @PostMapping("add")
     @Operation(summary = "添加评论", description = "添加评论到职位")
-    public R<Map<String, Object>> comment(@Valid @RequestBody JobCommentInputDto request) {
-        Integer commentId = commentService.addComment(request);
+    public R<Map<String, Object>> comment(@Valid @RequestBody JobCommentInputDto request, HttpServletRequest httpRequest) {
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        if (userId == null) {
+            return R.error("用户未登录");
+        }
+        Integer commentId = commentService.addComment(request, userId);
         Map<String, Object> result = new HashMap<>();
         result.put("id", commentId);
         return R.success(result);

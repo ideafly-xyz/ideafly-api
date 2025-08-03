@@ -1,7 +1,6 @@
 package com.ideafly.service.impl.interact;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.ideafly.common.UserContextHolder;
 import com.ideafly.dto.job.JobListInputDto;
 import com.ideafly.dto.interact.JobFavoriteInputDto;
 import com.ideafly.dto.interact.JobLikeInputDto;
@@ -37,12 +36,10 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     /**
      * 获取用户点赞的职位列表
      */
-    public Page<JobDetailOutputDto> getUserLikedJobs(JobListInputDto request) {
+    public Page<JobDetailOutputDto> getUserLikedJobs(JobListInputDto request, String userId) {
         long startTime = System.currentTimeMillis();
         System.out.println("【性能日志】开始获取用户点赞职位列表 - 参数: " + request);
         
-        // 获取当前用户ID
-        String userId = UserContextHolder.getUid();
         if (userId == null) {
             // 用户未登录，返回空结果
             System.out.println("【性能日志】用户未登录，返回空点赞列表");
@@ -221,9 +218,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     /**
      * 添加或取消点赞
      */
-    public void addOrRemoveLike(JobLikeInputDto dto) {
-        String uid = UserContextHolder.getUid();
-        
+    public void addOrRemoveLike(JobLikeInputDto dto, String userId) {
         // 验证职位是否存在 (保留现有逻辑)
         Jobs job = jobsService.getById(dto.getJobId());
         if (job == null) {
@@ -235,12 +230,12 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         int status = Objects.equals(dto.getIsLike(), 1) ? 1 : 0;
         
         // 使用Mapper中的原子操作方法
-        int affected = this.baseMapper.insertOrUpdateLikeStatus(dto.getJobId(), uid, status);
+        int affected = this.baseMapper.insertOrUpdateLikeStatus(dto.getJobId(), userId, status);
         
         // 记录操作结果
         String actionName = status == 1 ? "点赞" : "取消点赞";
         System.out.println(actionName + "操作完成，职位ID: " + dto.getJobId() + 
-                           ", 用户ID: " + uid + 
+                           ", 用户ID: " + userId + 
                            ", 状态: " + status +
                            ", 影响行数: " + affected);
     }
@@ -275,10 +270,9 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     /**
      * 判断当前登录用户是否点赞了职位
      */
-    public boolean isJobLike(Integer jobId) {
-        String uid = UserContextHolder.getUid();
-        if (Objects.nonNull(uid)) {
-            return isJobLikedByUser(jobId, uid);
+    public boolean isJobLike(Integer jobId, String userId) {
+        if (Objects.nonNull(userId)) {
+            return isJobLikedByUser(jobId, userId);
         }
         return false;
     }

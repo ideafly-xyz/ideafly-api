@@ -101,19 +101,13 @@ public class AuthServiceImpl {
             return null;
         }
         
-        // 先检查token是否在黑名单中
-        if (jwtUtil.isTokenBlacklisted(token)) {
-            log.warn("令牌已被加入黑名单");
-            return null;
-        }
-        
         try {
             String userId = jwtUtil.extractUserId(token);
             log.debug("从Token中提取用户标识: {}", userId);
             
-            // 验证token有效性
+            // 验证token有效性（包含黑名单检查和过期检查）
             if (!jwtUtil.isTokenValid(token, userId)) {
-                log.warn("Token无效");
+                log.warn("Token无效或已过期");
                 return null;
             }
             
@@ -129,19 +123,14 @@ public class AuthServiceImpl {
             return convertToLoginUser(user);
         } catch (Exception e) {
             log.error("从token获取用户信息失败", e);
-            return null;
+            throw e;
         }
     }
     
     public boolean validateToken(String token) {
-        // 先检查token是否在黑名单中
-        if (jwtUtil.isTokenBlacklisted(token)) {
-            log.warn("令牌已被加入黑名单");
-            return false;
-        }
-        
         try {
             String userId = jwtUtil.extractUserId(token);
+            // isTokenValid已经包含了黑名单检查和过期检查
             return jwtUtil.isTokenValid(token, userId);
         } catch (Exception e) {
             log.error("验证token失败", e);

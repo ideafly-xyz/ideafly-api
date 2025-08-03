@@ -5,7 +5,7 @@ import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.ideafly.common.*;
+import com.ideafly.common.R;
 import com.ideafly.dto.job.CreateJobInputDto;
 import com.ideafly.dto.job.CursorResponseDto;
 import com.ideafly.dto.job.JobDetailOutputDto;
@@ -220,9 +220,6 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             userMap = new HashMap<>();
         }
         
-        // 获取当前用户
-        String currentUserId = UserContextHolder.getUid();
-        
         // 批量查询收藏和点赞状态
         final Map<Integer, Boolean> favoriteMap = new HashMap<>();
         final Map<Integer, Boolean> likeMap = new HashMap<>();
@@ -258,31 +255,6 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             }
         }
         
-        if (currentUserId != null && !jobIds.isEmpty()) {
-            try {
-                // 批量查询收藏状态
-                Map<Integer, Boolean> tempFavoriteMap = jobFavoriteService.batchGetFavoriteStatus(jobIds, currentUserId);
-                favoriteMap.putAll(tempFavoriteMap);
-                
-                // 批量查询点赞状态
-                Map<Integer, Boolean> tempLikeMap = jobLikesService.batchGetLikeStatus(jobIds, currentUserId);
-                likeMap.putAll(tempLikeMap);
-            } catch (Exception e) {
-                System.out.println("【性能日志】批量获取状态异常: " + e.getMessage());
-                // 设置默认值
-                jobIds.forEach(jobId -> {
-                    favoriteMap.put(jobId, false);
-                    likeMap.put(jobId, false);
-                });
-            }
-        } else {
-            // 用户未登录，所有职位设置默认值
-            jobIds.forEach(jobId -> {
-                favoriteMap.put(jobId, false);
-                likeMap.put(jobId, false);
-            });
-        }
-        
         // 转换DTO
         return jobs.stream().map(job -> {
             JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
@@ -307,9 +279,9 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             // 设置发布时间
             dto.setPublishTime(TimeUtils.formatRelativeTime(job.getCreatedAt()) + "发布");
             
-            // 设置收藏和点赞状态
-            dto.setIsLike(likeMap.getOrDefault(job.getId(), false));
-            dto.setIsFavorite(favoriteMap.getOrDefault(job.getId(), false));
+            // 设置收藏和点赞状态（未登录用户默认为false）
+            dto.setIsLike(false);
+            dto.setIsFavorite(false);
             
             // 设置游标值（前端可能需要）
             dto.setCursor(CursorUtils.encodeCursor(job.getCreatedAt(), job.getId()));
@@ -370,53 +342,9 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
             System.out.println("【性能日志】统计数据查询耗时较长 - 职位ID: " + job.getId() + ", 耗时: " + (statsQueryEnd - statsQueryStart) + "ms");
         }
         
-        // 设置是否收藏和点赞状态
-        long statusQueryStart = System.currentTimeMillis();
-        try {
-            // 获取当前用户ID
-            String uid = UserContextHolder.getUid();
-            
-            // 默认设置为false
-            dto.setIsLike(false);
-            dto.setIsFavorite(false);
-            
-            // 只有登录用户才能获取收藏和点赞状态
-            if (uid != null) {
-                // 查询是否已收藏
-                long favoriteQueryStart = System.currentTimeMillis();
-                try {
-                    Boolean isFavorite = jobFavoriteService.isJobFavorite(job.getId());
-                    dto.setIsFavorite(isFavorite);
-                    long favoriteQueryEnd = System.currentTimeMillis();
-                    if (favoriteQueryEnd - favoriteQueryStart > 50) {
-                        System.out.println("【性能日志】收藏状态查询耗时较长 - 职位ID: " + job.getId() + ", 耗时: " + (favoriteQueryEnd - favoriteQueryStart) + "ms");
-                    }
-                } catch (Exception e) {
-                    System.out.println("获取收藏状态异常: " + e.getMessage());
-                }
-                
-                // 查询是否已点赞
-                long likeQueryStart = System.currentTimeMillis();
-                try {
-                    Boolean isLike = jobLikesService.isJobLikedByUser(job.getId(), uid);
-                    dto.setIsLike(isLike);
-                    long likeQueryEnd = System.currentTimeMillis();
-                    if (likeQueryEnd - likeQueryStart > 50) {
-                        System.out.println("【性能日志】点赞状态查询耗时较长 - 职位ID: " + job.getId() + ", 耗时: " + (likeQueryEnd - likeQueryStart) + "ms");
-                    }
-                } catch (Exception e) {
-                    System.out.println("获取点赞状态异常: " + e.getMessage());
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("获取作品收藏/点赞状态失败: " + e.getMessage());
-            e.printStackTrace();
-        }
-        long statusQueryEnd = System.currentTimeMillis();
-        
-        if (statusQueryEnd - statusQueryStart > 100) {
-            System.out.println("【性能日志】状态查询总耗时较长 - 职位ID: " + job.getId() + ", 总耗时: " + (statusQueryEnd - statusQueryStart) + "ms");
-        }
+        // 设置是否收藏和点赞状态（未登录用户默认为false）
+        dto.setIsLike(false);
+        dto.setIsFavorite(false);
         
         long endTime = System.currentTimeMillis();
         if (endTime - startTime > 150) {
@@ -458,12 +386,12 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         return dto;
     }
 
-    public Jobs createJob(CreateJobInputDto request) {
+    public Jobs createJob(CreateJobInputDto request, String userId) {
         Jobs job = new Jobs();
         // 只设置标题和内容字段
         job.setPostTitle(request.getPostTitle());
         job.setPostContent(request.getPostContent());
-        job.setUserId(UserContextHolder.getUid());
+        job.setUserId(userId);
         this.save(job);
         return job;
     }
@@ -488,15 +416,14 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
     /**
      * 获取关注用户发布的帖子
      * @param request 分页请求参数
+     * @param userId 当前用户ID
      * @return 关注用户的帖子列表（分页）
      */
-    public Page<JobDetailOutputDto> getFollowingUserJobs(JobListInputDto request) {
+    public Page<JobDetailOutputDto> getFollowingUserJobs(JobListInputDto request, String userId) {
         System.out.println("【性能日志】开始获取关注用户帖子 - 页大小:" + request.getPageSize());
         long startTime = System.currentTimeMillis();
         
-        // 获取当前用户ID
-        String currentUserId = UserContextHolder.getUid();
-        if (currentUserId == null) {
+        if (userId == null) {
             System.out.println("【性能日志】用户未登录，无法获取关注用户帖子");
             throw new IllegalArgumentException("用户未登录");
         }
@@ -506,7 +433,7 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
         
         try {
             // 获取当前用户关注的用户ID列表
-            List<String> followingUserIds = userFollowService.getFollowingUserIds(currentUserId);
+            List<String> followingUserIds = userFollowService.getFollowingUserIds(userId);
             
             // 如果没有关注任何用户，返回空结果
             if (CollUtil.isEmpty(followingUserIds)) {
@@ -573,11 +500,11 @@ public class JobsService extends ServiceImpl<JobsMapper, Jobs> {
                 }
                 
                 // 批量查询收藏状态
-                Map<Integer, Boolean> tempFavoriteMap = jobFavoriteService.batchGetFavoriteStatus(jobIds, currentUserId);
+                Map<Integer, Boolean> tempFavoriteMap = jobFavoriteService.batchGetFavoriteStatus(jobIds, userId);
                 favoriteMap.putAll(tempFavoriteMap);
                 
                 // 批量查询点赞状态
-                Map<Integer, Boolean> tempLikeMap = jobLikesService.batchGetLikeStatus(jobIds, currentUserId);
+                Map<Integer, Boolean> tempLikeMap = jobLikesService.batchGetLikeStatus(jobIds, userId);
                 likeMap.putAll(tempLikeMap);
             }
             
