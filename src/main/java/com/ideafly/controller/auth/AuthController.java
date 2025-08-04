@@ -50,7 +50,6 @@ public class AuthController {
         }
         Map<String, String> result = authService.getAccessToken(refreshToken);
         if (result == null) {
-            log.warn("refreshToken无效或已过期");
             return R.error(ErrorCode.INVALID_TOKEN.getCode(), "refreshToken无效或已过期");
         }
         return R.success(result);

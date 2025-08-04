@@ -71,12 +71,20 @@ public class JwtUtil {
         
         String token = createToken(claims, userId, expiration);
         
-        // 记录生成的JWT详情
+        // 记录生成的JWT详情（iat/exp为可读时间）
         try {
             Claims tokenClaims = extractAllClaims(token);
+            Map<String, Object> logMap = new HashMap<>(tokenClaims);
+            Object iatObj = logMap.get("iat");
+            Object expObj = logMap.get("exp");
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String iatReadable = iatObj != null ? sdf.format(new java.util.Date(((Number) iatObj).longValue() * 1000)) : "";
+            String expReadable = expObj != null ? sdf.format(new java.util.Date(((Number) expObj).longValue() * 1000)) : "";
+            logMap.put("iat(readable)", iatReadable);
+            logMap.put("exp(readable)", expReadable);
             log.info("JWT解析详情 - {}: {{header={}, payload={}, signature=***}}", 
                     isRefreshToken ? "refreshToken" : "accessToken",
-                    tokenClaims.toString());
+                    logMap.toString());
         } catch (Exception e) {
             log.warn("无法解析生成的JWT进行日志记录: {}", e.getMessage());
         }
