@@ -6,9 +6,11 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+
 import javax.annotation.Resource;
 import java.security.Key;
 import java.util.Date;
@@ -66,14 +68,28 @@ public class JwtUtil {
      * 从令牌中获取所有声明
      */
     private Claims extractAllClaims(String token) {
-        return Jwts.parser().setSigningKey(getSignInKey()).parseClaimsJws(token).getBody();
+        return Jwts.parserBuilder()
+                .setSigningKey(getSignInKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 
     /**
      * 检查令牌是否过期
      */
-    private Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+    public Boolean isTokenExpired(String token) {
+        try {
+            log.info("token过期时间: {}", extractExpiration(token));
+            return extractExpiration(token).before(new Date());
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            log.info("token已过期: {}", token);
+            return true;
+        } catch (Exception e) {
+            log.info("token解析失败: {}", token);
+            // 解析失败也视为过期
+            throw e;
+        }
     }
 
     /**
@@ -142,14 +158,7 @@ public class JwtUtil {
     }
 
     /**
-     * 从令牌中获取用户ID（与extractUserId相同，但命名更符合TokenInterceptor需求）
-     */
-    public String extractUserIdFromToken(String token) {
-        return extractUserId(token);
-    }
-
-    /**
-     * 从token中提取用户ID，即使token已过期
+     * 从令牌中获取用户ID，即使token已过期
      * 专用于refreshToken处理，允许从过期token中提取信息
      */
     public String extractUserIdIgnoreExpired(String token) {
@@ -164,16 +173,6 @@ public class JwtUtil {
         }
     }
 
-    /**
-     * 验证用户ID的令牌（包含黑名单检查、userId匹配和过期检查）
-     */
-    public boolean isTokenValid(String token, String userId) {
-        if (isTokenBlacklisted(token)) {
-            return false;
-        }
-        String extractedUserId = extractUserIdFromToken(token);
-        return (extractedUserId.equals(userId) && !isTokenExpired(token));
-    }
 
     /**
      * 验证refresh token有效性

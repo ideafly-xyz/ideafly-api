@@ -3,7 +3,6 @@ package com.ideafly.controller.auth;
 import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.ErrorCode;
 import com.ideafly.common.R;
-import com.ideafly.dto.auth.RefreshTokenDto;
 import com.ideafly.dto.auth.TelegramAuthDto;
 import com.ideafly.service.impl.auth.AuthServiceImpl;
 
@@ -15,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.validation.Valid;
 import java.util.Map;
+import javax.servlet.http.HttpServletRequest;
 
 @Tag(name = "认证接口", description = "用户认证相关接口")
 @RestController
@@ -42,9 +42,13 @@ public class AuthController {
     @NoAuth
     @PostMapping("/access-token")
     @Operation(summary = "获取访问令牌", description = "通过refreshToken获取新的accessToken和refreshToken")
-    public R<Map<String, String>> getAccessToken(@Valid @RequestBody RefreshTokenDto refreshTokenDto) {
+    public R<Map<String, String>> getAccessToken(HttpServletRequest request) {
         
-        String refreshToken = refreshTokenDto.getRefreshToken();
+        String refreshToken = null;
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            refreshToken = authorizationHeader.substring(7); // 去除 "Bearer " 前缀
+        }
         
         if (refreshToken == null || refreshToken.isEmpty()) {
             log.warn("refreshToken为空");

@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.regex.Pattern;
+import com.ideafly.utils.JwtUtil;
 
 @Slf4j
 @Component
@@ -25,6 +26,7 @@ import java.util.regex.Pattern;
 public class TokenInterceptor implements HandlerInterceptor {
 
     private final AuthServiceImpl authService;
+    private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 静态资源路径正则
@@ -103,13 +105,27 @@ public class TokenInterceptor implements HandlerInterceptor {
             // 提取token，移除Bearer前缀和空格
             String token = extractToken(authHeader);
             log.debug("提取的token: {}", token);
+
+            if (token == null || token.isEmpty()) {
+                log.warn("Token为空");
+                responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "未携带Token，拒绝访问"));
+                return false;
+            }
+
+            // accessToken 过期检查
+            if (jwtUtil.isTokenExpired(token)) {
+                log.info("Token已过期: {}", token);
+                responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "登录已过期"));
+                return false;
+            }
+
             
             // 验证token并获取用户信息
             LoginUser loginUser = authService.getUserByToken(token);
             
             if (loginUser == null) {
-                // token无效或过期
-                log.warn("无效的token，拒绝访问: {}", url);
+                // token无效或用户不存在
+                log.warn("用户不存在，拒绝访问: {}", url);
                 
                 // 如果是公开访问路径，仍允许访问
                 if (isPublicPath) {
@@ -117,7 +133,7 @@ public class TokenInterceptor implements HandlerInterceptor {
                     return true;
                 }
                 
-                responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "无效的token，拒绝访问"));
+                responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "用户不存在，请重新登录"));
                 return false;
             }
             

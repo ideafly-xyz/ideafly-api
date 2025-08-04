@@ -96,20 +96,12 @@ public class AuthServiceImpl {
     }
     
     public LoginUser getUserByToken(String token) {
-        if (token == null || token.isEmpty()) {
-            log.warn("Token为空");
-            return null;
-        }
         
         try {
+
             String userId = jwtUtil.extractUserId(token);
             log.debug("从Token中提取用户标识: {}", userId);
             
-            // 验证token有效性（包含黑名单检查和过期检查）
-            if (!jwtUtil.isTokenValid(token, userId)) {
-                log.warn("Token无效或已过期");
-                return null;
-            }
             
             // 直接用userId查找用户
             Users user = usersService.getById(userId);
@@ -124,17 +116,6 @@ public class AuthServiceImpl {
         } catch (Exception e) {
             log.error("从token获取用户信息失败", e);
             throw e;
-        }
-    }
-    
-    public boolean validateToken(String token) {
-        try {
-            String userId = jwtUtil.extractUserId(token);
-            // isTokenValid已经包含了黑名单检查和过期检查
-            return jwtUtil.isTokenValid(token, userId);
-        } catch (Exception e) {
-            log.error("验证token失败", e);
-            return false;
         }
     }
     
