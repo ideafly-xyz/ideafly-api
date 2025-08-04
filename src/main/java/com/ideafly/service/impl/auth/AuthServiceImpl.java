@@ -58,40 +58,32 @@ public class AuthServiceImpl {
     }
     
     public Map<String, String> getAccessToken(String refreshToken) {
-        
         if (refreshToken == null || refreshToken.isEmpty()) {
             log.warn("refreshToken为空");
-            throw new RuntimeException("refreshToken不能为空");
+            return null;
         }
-        
         try {
-            String userId = jwtUtil.extractUserIdIgnoreExpired(refreshToken);
-            
             // 验证refreshToken是否有效 (包含过期验证)
-            if (!jwtUtil.isRefreshTokenValid(refreshToken, userId)) { 
+            if (!jwtUtil.isRefreshTokenValid(refreshToken)) {
                 log.warn("refreshToken 无效或已过期");
-                throw new RuntimeException("refreshToken无效或已过期");
+                return null;
             }
-            
             log.info("refreshToken有效，正在生成新的accessToken和refreshToken");
-            
             // 将旧的refreshToken加入黑名单
             jwtUtil.invalidateRefreshToken(refreshToken);
-            
+
             // 生成新的accessToken和refreshToken
+            String userId = jwtUtil.extractUserIdIgnoreExpired(refreshToken);
             String newAccessToken = jwtUtil.generateToken(userId, false);
             String newRefreshToken = jwtUtil.generateToken(userId, true);
-            
             Map<String, String> result = new HashMap<>();
             result.put("accessToken", newAccessToken);
             result.put("refreshToken", newRefreshToken);
-            
             log.info("成功生成新的accessToken和refreshToken");
-            
             return result;
         } catch (Exception e) {
             log.error("获取访问令牌过程中发生异常", e);
-            throw new RuntimeException("获取访问令牌失败: " + e.getMessage());
+            return null;
         }
     }
     
@@ -99,7 +91,7 @@ public class AuthServiceImpl {
         
         try {
 
-            String userId = jwtUtil.extractUserId(token);
+            String userId = jwtUtil.extractUserIdIgnoreExpired(token);
             log.debug("从Token中提取用户标识: {}", userId);
             
             

@@ -1,12 +1,11 @@
 package com.ideafly.utils;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -18,7 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import io.jsonwebtoken.ExpiredJwtException;
 
 /**
  * JWT工具类
@@ -26,47 +24,28 @@ import io.jsonwebtoken.ExpiredJwtException;
 @Component
 @Slf4j
 public class JwtUtil {
-
+    
     @Resource
     private StringRedisTemplate stringRedisTemplate;
-
+    
     @Value("${jwt.secret}") // 从配置文件中读取密钥
     private String secretKey;
-
+    
     @Value("${jwt.expiration}") // Token 过期时间，单位毫秒
     private long jwtExpiration;
-
+    
     @Value("${jwt.refreshExpiration}") // Refresh Token 过期时间，单位毫秒
     private long refreshExpiration;
-
-    // Token黑名单前缀
+    
     private static final String TOKEN_BLACKLIST_PREFIX = "refreshTokenBlackList:";
+    
 
-    /**
-     * 从令牌中获取用户ID
-     */
-    public String extractUserId(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    /**
-     * 从令牌中获取过期时间
-     */
-    public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    /**
-     * 从令牌中获取指定声明
-     */
+    
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
-
-    /**
-     * 从令牌中获取所有声明
-     */
+    
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
@@ -75,66 +54,36 @@ public class JwtUtil {
                 .getBody();
     }
 
-    /**
-     * 检查令牌是否过期
-     */
-    public Boolean isTokenExpired(String token) {
-        try {
-            log.info("token过期时间: {}", extractExpiration(token));
-            return extractExpiration(token).before(new Date());
-        } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            log.info("token已过期: {}", token);
-            return true;
-        } catch (Exception e) {
-            log.info("token解析失败: {}", token);
-            // 解析失败也视为过期
-            throw e;
-        }
-    }
 
-    /**
-     * 生成令牌
-     * @param userId 用户ID
-     * @param isRefreshToken 是否是刷新令牌
-     * @return 令牌
-     */
+    
     public String generateToken(String userId, boolean isRefreshToken) {
         Map<String, Object> claims = new HashMap<>();
+        
+        // 设置token类型
         if (isRefreshToken) {
             claims.put("tokenType", "refresh");
         } else {
             claims.put("tokenType", "access");
         }
         
+        // 设置过期时间
         long expiration = isRefreshToken ? refreshExpiration : jwtExpiration;
+        
         String token = createToken(claims, userId, expiration);
         
-        String tokenType = isRefreshToken ? "refreshToken" : "accessToken";
-        
-        // 解析JWT内容并输出详细日志
+        // 记录生成的JWT详情
         try {
-            Claims parsedClaims = extractAllClaims(token);
-            Map<String, Object> jwtInfo = new HashMap<>();
-            jwtInfo.put("header", Map.of("alg", "HS256", "typ", "JWT"));
-            jwtInfo.put("payload", Map.of(
-                "sub", parsedClaims.getSubject(),
-                "iat", parsedClaims.getIssuedAt(),
-                "exp", parsedClaims.getExpiration(),
-                "tokenType", parsedClaims.get("tokenType", String.class)
-            ));
-            jwtInfo.put("signature", "***"); // 签名部分不输出具体内容
-            
-            log.info("JWT解析详情 - {}: {}", tokenType, jwtInfo);
+            Claims tokenClaims = extractAllClaims(token);
+            log.info("JWT解析详情 - {}: {{header={}, payload={}, signature=***}}", 
+                    isRefreshToken ? "refreshToken" : "accessToken",
+                    tokenClaims.toString());
         } catch (Exception e) {
-            log.warn("解析JWT失败: {}", e.getMessage());
+            log.warn("无法解析生成的JWT进行日志记录: {}", e.getMessage());
         }
         
         return token;
     }
-
-    /**
-     * 创建令牌
-     */
+    
     private String createToken(Map<String, Object> claims, String subject, long expiration) {
         return Jwts.builder()
                 .setClaims(claims)
@@ -144,20 +93,15 @@ public class JwtUtil {
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
-
-    /**
-     * 验证令牌
-     */
-
-
+    
     public Key getSignInKey() {
         // 替换 '-' 和 '_' 为 '+' 和 '/'
         String processedKey = secretKey.replace('-', '+').replace('_', '/');
-        byte[] keyBytes = Decoders.BASE64.decode(processedKey);
+        byte[] keyBytes = java.util.Base64.getDecoder().decode(processedKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    /**
+    /*
      * 从令牌中获取用户ID，即使token已过期
      * 专用于refreshToken处理，允许从过期token中提取信息
      */
@@ -173,40 +117,55 @@ public class JwtUtil {
         }
     }
 
+    public String extractUserId(String token) {
+        return extractClaim(token, Claims::getSubject);
+    }
+
+
+    //====accessToken====
+    public Boolean isAccessTokenValid(String token) {
+        try {            
+            Claims claims = extractAllClaims(token);
+            String tokenType = (String) claims.get("tokenType");
+            if (!"access".equals(tokenType)) {
+                log.info("非accessToken类型，tokenType: {}", tokenType);
+                return false;
+            }
+
+            // 检查token是否过期
+            Date expiration = claims.getExpiration();
+            boolean expired = expiration.before(new Date());
+            if (expired) {
+                log.info("accessToken已过期，过期时间: {}", expiration);
+                return false;
+            }
+            return true;
+        } catch (ExpiredJwtException e) {
+            log.info("Token已过期: {}", e.getMessage());
+            return false;
+        } catch (Exception e) {
+            log.info("Token无效或已过期: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    //====refreshToken=====
 
     /**
      * 验证refresh token有效性
      */
-    public boolean isRefreshTokenValid(String token, String userId) {
+    public boolean isRefreshTokenValid(String token) {
         // 检查token是否在黑名单中
         if (isTokenBlacklisted(token)) {
-            log.info("RefreshToken在黑名单中: {}", token);
+            log.info("refreshToken在黑名单中: {}", token);
             return false;
         }
         try {
             Claims claims = extractAllClaims(token);
-            // 支持两种类型的刷新令牌标识：
-            // 1. 新方式，使用tokenType="refresh"
-            // 2. 旧方式，使用isRefreshToken=true
-            boolean isRefresh = false;
-            // 检查tokenType字段
+            // 只支持新的tokenType方式
             String tokenType = (String) claims.get("tokenType");
-            if ("refresh".equals(tokenType)) {
-                isRefresh = true;
-            }
-            // 如果没有tokenType或tokenType不是"refresh"，检查isRefreshToken字段
-            if (!isRefresh) {
-                Boolean isRefreshToken = claims.get("isRefreshToken", Boolean.class);
-                isRefresh = Boolean.TRUE.equals(isRefreshToken);
-            }
-            if (!isRefresh) {
-                log.info("非刷新token类型");
-                return false;
-            }
-            // 验证主题与userId是否匹配
-            String extractedUserId = claims.getSubject();
-            if (!extractedUserId.equals(userId)) {
-                log.info("userId不匹配: token={}, input={}", extractedUserId, userId);
+            if (!"refresh".equals(tokenType)) {
+                log.info("非刷新token类型，tokenType: {}", tokenType);
                 return false;
             }
             // 检查token是否过期
@@ -249,11 +208,11 @@ public class JwtUtil {
                 );
 
                 // 截取token的前8位和后8位用于日志显示  
-    String tokenForLog = token.length() > 16 ?   
-token.substring(0, 8) + "..." + token.substring(token.length() - 8) : token;  
+                String tokenForLog = token.length() > 16 ?   
+                    token.substring(0, 8) + "..." + token.substring(token.length() - 8) : token;  
 
-    log.info("refreshToken已加入黑名单，redis key: {}{}, value: {}, redis key 剩余有效期: {}ms",   TOKEN_BLACKLIST_PREFIX, tokenForLog, "1", ttl);
-
+                log.info("refreshToken已加入黑名单，redis key: {}{}, value: {}, redis key 剩余有效期: {}ms",   
+                    TOKEN_BLACKLIST_PREFIX, tokenForLog, "1", ttl);
             }
         } catch (Exception e) {
             log.error("使token失效时出错", e);

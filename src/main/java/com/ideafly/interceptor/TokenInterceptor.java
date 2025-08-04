@@ -34,7 +34,8 @@ public class TokenInterceptor implements HandlerInterceptor {
     
     // token 白名单路径
     private static final String[] WHITE_LIST = {
-            "/api/auth",    // Telegram登录相关
+            "/api/auth",    // 包含/api/auth/login和/api/auth/access-token
+
             "/api/user/refreshToken", // Token刷新
             "/api/sms/sendSms",      // 短信验证码
             "/api/sms/login",        // 短信登录
@@ -113,8 +114,8 @@ public class TokenInterceptor implements HandlerInterceptor {
             }
 
             // accessToken 过期检查
-            if (jwtUtil.isTokenExpired(token)) {
-                log.info("Token已过期: {}", token);
+            if (!jwtUtil.isAccessTokenValid(token)) {
+                log.info("Token无效或已过期: {}", token);
                 responseError(response, R.error(ErrorCode.INVALID_TOKEN.getCode(), "登录已过期"));
                 return false;
             }

@@ -43,20 +43,16 @@ public class AuthController {
     @PostMapping("/access-token")
     @Operation(summary = "获取访问令牌", description = "通过refreshToken获取新的accessToken和refreshToken")
     public R<Map<String, String>> getAccessToken(@Valid @RequestBody RefreshTokenDto refreshTokenDto) {
-        
         String refreshToken = refreshTokenDto.getRefreshToken();
-        
         if (refreshToken == null || refreshToken.isEmpty()) {
             log.warn("refreshToken为空");
             return R.error(ErrorCode.TOKEN_NULL);
         }
-        
-        try {
-            Map<String, String> result = authService.getAccessToken(refreshToken);
-            return R.success(result);
-        } catch (Exception e) {
-            log.error("获取访问令牌失败", e);
-            return R.error(ErrorCode.SYSTEM_ERROR.getCode(), "获取访问令牌失败: " + e.getMessage());
+        Map<String, String> result = authService.getAccessToken(refreshToken);
+        if (result == null) {
+            log.warn("refreshToken无效或已过期");
+            return R.error(ErrorCode.INVALID_TOKEN.getCode(), "refreshToken无效或已过期");
         }
+        return R.success(result);
     }
 }
