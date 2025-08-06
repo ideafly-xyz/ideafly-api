@@ -11,6 +11,7 @@ import com.ideafly.service.impl.interact.JobLikesService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -22,12 +23,11 @@ import java.util.Map;
 @Tag(name = "点赞相关接口", description = "点赞相关功能接口")
 @RestController
 @RequestMapping("/api/jobs/likes")
+@Slf4j
 public class PostLikesController {
 
     @Resource
     private JobLikesService jobLikesService;
-
-
 
     /**
      * 点赞或取消点赞
@@ -36,20 +36,19 @@ public class PostLikesController {
     @Operation(summary = "点赞", description = "点赞或取消点赞功能")
     public R<Map<String, Object>> toggleLike(@RequestBody @Valid JobLikeInputDto request, HttpServletRequest httpRequest) {
         String userId = RequestUtils.getCurrentUserId(httpRequest);
-        System.out.println("收到点赞请求 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike() + ", 用户ID: " + userId);
+        log.info("收到点赞请求 - JobID: {}, isLike: {}, 用户ID: {}", request.getJobId(), request.getIsLike(), userId);
         try {
             jobLikesService.addOrRemoveLike(request, userId);
             boolean liked = jobLikesService.isJobLike(request.getJobId(), userId);
             int likeCount = jobLikesService.getJobLikesCount(request.getJobId());
-            System.out.println("点赞操作成功 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike() + ", 当前点赞状态: " + liked + ", 总点赞数: " + likeCount);
+            log.info("点赞操作成功 - JobID: {}, isLike: {}, 当前点赞状态: {}, 总点赞数: {}", request.getJobId(), request.getIsLike(), liked, likeCount);
             Map<String, Object> result = new HashMap<>();
             result.put("jobId", request.getJobId());
             result.put("liked", liked);
             result.put("likeCount", likeCount);
             return R.success(result);
         } catch (Exception e) {
-            System.out.println("点赞操作失败 - " + e.getMessage());
-            e.printStackTrace();
+            log.error("点赞操作失败 - {}", e.getMessage(), e);
             return R.error("点赞失败: " + e.getMessage());
         }
     }
@@ -73,12 +72,6 @@ public class PostLikesController {
         return R.success(result);
     }
 
-
-
-
-
-
-
     /**
      * 获取用户获得的总点赞数
      */
@@ -87,15 +80,15 @@ public class PostLikesController {
     @Operation(summary = "获取用户总点赞数", description = "获取指定用户获得的总点赞数")
     public R<Map<String, Object>> getUserTotalLikes(@RequestParam(value = "userId", required = false) String userId, HttpServletRequest httpRequest) {
         long startTime = System.currentTimeMillis();
-        System.out.println("====== 获取用户总点赞数 API 开始处理 ======");
-        System.out.println("请求参数: userId=" + userId);
+        log.info("====== 获取用户总点赞数 API 开始处理 ======");
+        log.info("请求参数: userId={}", userId);
         String targetUserId = userId;
         // 如果未指定用户ID，则使用当前登录用户ID
         if (targetUserId == null) {
             targetUserId = RequestUtils.getCurrentUserId(httpRequest);
-            System.out.println("使用当前登录用户ID: " + targetUserId);
+            log.info("使用当前登录用户ID: {}", targetUserId);
             if (targetUserId == null) {
-                System.out.println("错误: 未登录且未指定用户ID");
+                log.warn("错误: 未登录且未指定用户ID");
                 return R.error("请提供要查询的用户ID");
             }
         }
@@ -105,12 +98,11 @@ public class PostLikesController {
         result.put("userId", targetUserId);
         result.put("totalLikes", totalLikes);
         long endTime = System.currentTimeMillis();
-        System.out.println("总点赞数: " + totalLikes);
-        System.out.println("API总处理耗时: " + (endTime - startTime) + "ms");
-        System.out.println("====== 获取用户总点赞数 API 处理完成 ======");
+        log.info("总点赞数: {}", totalLikes);
+        log.info("API总处理耗时: {}ms", (endTime - startTime));
+        log.info("====== 获取用户总点赞数 API 处理完成 ======");
         return R.success(result);
     }
-
 
     /**
      * 获取用户点赞的职位列表
@@ -121,6 +113,5 @@ public class PostLikesController {
         String userId = RequestUtils.getCurrentUserId(httpRequest);
         return R.success(jobLikesService.getUserLikedJobs(request, userId));
     }
-
 
 } 
