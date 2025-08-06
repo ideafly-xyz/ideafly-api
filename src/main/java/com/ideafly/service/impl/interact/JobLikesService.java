@@ -2,14 +2,11 @@ package com.ideafly.service.impl.interact;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ideafly.dto.job.JobListInputDto;
-import com.ideafly.dto.interact.JobFavoriteInputDto;
 import com.ideafly.dto.interact.JobLikeInputDto;
 import com.ideafly.dto.job.JobDetailOutputDto;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.ideafly.mapper.interact.JobFavoriteMapper;
 import com.ideafly.mapper.interact.JobLikesMapper;
 import com.ideafly.model.Jobs;
-import com.ideafly.model.interact.JobFavorite;
 import com.ideafly.model.interact.JobLikes;
 import com.ideafly.model.users.Users;
 import com.ideafly.service.impl.JobsService;

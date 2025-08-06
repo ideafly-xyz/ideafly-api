@@ -27,34 +27,57 @@ public class PostLikesController {
     @Resource
     private JobLikesService jobLikesService;
 
-    /**
-     * 获取用户点赞的职位列表
-     */
-    @PostMapping("/list")
-    @Operation(summary = "获取点赞职位", description = "获取当前用户点赞的所有职位")
-    public R<Page<JobDetailOutputDto>> getLikedJobs(@RequestBody JobListInputDto request, HttpServletRequest httpRequest) {
-        String userId = RequestUtils.getCurrentUserId(httpRequest);
-        return R.success(jobLikesService.getUserLikedJobs(request, userId));
-    }
+
 
     /**
      * 点赞或取消点赞
      */
     @PostMapping("/toggle")
     @Operation(summary = "点赞", description = "点赞或取消点赞功能")
-    public R<Boolean> toggleLike(@RequestBody @Valid JobLikeInputDto request, HttpServletRequest httpRequest) {
+    public R<Map<String, Object>> toggleLike(@RequestBody @Valid JobLikeInputDto request, HttpServletRequest httpRequest) {
         String userId = RequestUtils.getCurrentUserId(httpRequest);
         System.out.println("收到点赞请求 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike() + ", 用户ID: " + userId);
         try {
             jobLikesService.addOrRemoveLike(request, userId);
-            System.out.println("点赞操作成功 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike());
-            return R.success(Boolean.TRUE);
+            boolean liked = jobLikesService.isJobLike(request.getJobId(), userId);
+            int likeCount = jobLikesService.getJobLikesCount(request.getJobId());
+            System.out.println("点赞操作成功 - JobID: " + request.getJobId() + ", isLike: " + request.getIsLike() + ", 当前点赞状态: " + liked + ", 总点赞数: " + likeCount);
+            Map<String, Object> result = new HashMap<>();
+            result.put("jobId", request.getJobId());
+            result.put("liked", liked);
+            result.put("likeCount", likeCount);
+            return R.success(result);
         } catch (Exception e) {
             System.out.println("点赞操作失败 - " + e.getMessage());
             e.printStackTrace();
             return R.error("点赞失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 查询当前用户对职位的点赞详情（是否点赞+总数）
+     */
+    @GetMapping("/info")
+    @Operation(summary = "查询职位点赞详情", description = "返回当前用户是否点赞及职位点赞总数")
+    public R<Map<String, Object>> getLikeInfo(@RequestParam("jobId") Integer jobId, HttpServletRequest httpRequest) {
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        boolean liked = false;
+        if (userId != null) {
+            liked = jobLikesService.isJobLike(jobId, userId);
+        }
+        int likeCount = jobLikesService.getJobLikesCount(jobId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("jobId", jobId);
+        result.put("liked", liked);
+        result.put("likeCount", likeCount);
+        return R.success(result);
+    }
+
+
+
+
+
+
 
     /**
      * 获取用户获得的总点赞数
@@ -87,4 +110,17 @@ public class PostLikesController {
         System.out.println("====== 获取用户总点赞数 API 处理完成 ======");
         return R.success(result);
     }
+
+
+    /**
+     * 获取用户点赞的职位列表
+     */
+    @PostMapping("/list")
+    @Operation(summary = "获取点赞职位", description = "获取当前用户点赞的所有职位")
+    public R<Page<JobDetailOutputDto>> getLikedJobs(@RequestBody JobListInputDto request, HttpServletRequest httpRequest) {
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        return R.success(jobLikesService.getUserLikedJobs(request, userId));
+    }
+
+
 } 

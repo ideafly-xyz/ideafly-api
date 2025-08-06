@@ -1,6 +1,7 @@
 package com.ideafly.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ideafly.aop.anno.NoAuth;
 import com.ideafly.common.ErrorCode;
 import com.ideafly.common.R;
 import com.ideafly.dto.auth.LoginUser;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -32,22 +34,11 @@ public class TokenInterceptor implements HandlerInterceptor {
     // 静态资源路径正则
     private static final Pattern RESOURCE_PATTERN = Pattern.compile(".*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$");
     
-    // token 白名单路径
-    private static final String[] WHITE_LIST = {
-            "/api/auth",    // 包含/api/auth/login和/api/auth/access-token
-
-            "/api/user/refreshToken", // Token刷新
-            "/api/sms/sendSms",      // 短信验证码
-            "/api/sms/login",        // 短信登录
-            "/swagger",
-            "/v2/api-docs",
-            "/v3/api-docs",
-            "/webjars/",
-            "/doc.html"
-    };
-    
     // 允许匿名访问但尝试提取token的路径
     private static final String[] PUBLIC_PATHS = {
+            "/api/jobs/likes/info",
+
+            
             "/api/jobs/list",         // 职位列表（公开，但尝试获取用户信息）
             "/api/comments/list",     // 评论列表游标分页（公开，允许未登录用户查看）
             "/api/comments/count",    // 评论数量（公开，允许未登录用户查看）
@@ -72,10 +63,13 @@ public class TokenInterceptor implements HandlerInterceptor {
             return true;
         }
         
-        // 检查是否为白名单URL
-        if (isWhiteListUrl(url)) {
-            log.debug("白名单URL，跳过认证: {}", url);
-            return true;
+        // 检查是否有@NoAuth注解
+        if (handler instanceof HandlerMethod) {
+            HandlerMethod handlerMethod = (HandlerMethod) handler;
+            if (handlerMethod.hasMethodAnnotation(NoAuth.class) || handlerMethod.getBeanType().isAnnotationPresent(NoAuth.class)) {
+                log.debug("NoAuth注解，跳过认证: {}", url);
+                return true;
+            }
         }
 
         // 从请求头中获取token
@@ -186,13 +180,6 @@ public class TokenInterceptor implements HandlerInterceptor {
     public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, Exception ex) {
         // 请求结束后清理上下文
         request.removeAttribute("loginUser");
-    }
-
-    /**
-     * 检查URL是否在白名单中
-     */
-    private boolean isWhiteListUrl(String url) {
-        return Arrays.stream(WHITE_LIST).anyMatch(url::startsWith);
     }
     
     /**
