@@ -9,10 +9,11 @@ import com.ideafly.mapper.interact.JobLikesMapper;
 import com.ideafly.model.Jobs;
 import com.ideafly.model.interact.JobLikes;
 import com.ideafly.model.users.Users;
-import com.ideafly.service.impl.JobsService;
+import com.ideafly.service.impl.PostsService;
 import com.ideafly.service.impl.users.UsersService;
 import com.ideafly.utils.PageUtil;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -23,9 +24,10 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     @Resource
-    private JobsService jobsService;
+    private PostsService jobsService;
     
     @Resource
     private UsersService usersService;
@@ -35,11 +37,11 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
      */
     public Page<JobDetailOutputDto> getUserLikedJobs(JobListInputDto request, String userId) {
         long startTime = System.currentTimeMillis();
-        System.out.println("【性能日志】开始获取用户点赞职位列表 - 参数: " + request);
+        log.info("【性能日志】开始获取用户点赞职位列表 - 参数: {}", request);
         
         if (userId == null) {
             // 用户未登录，返回空结果
-            System.out.println("【性能日志】用户未登录，返回空点赞列表");
+            log.info("【性能日志】用户未登录，返回空点赞列表");
             Page<Jobs> emptyPage = PageUtil.build(request);
             return PageUtil.build(emptyPage, new ArrayList<>());
         }
@@ -68,7 +70,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             .collect(Collectors.toList());
             
         long likeQueryEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】查询用户点赞职位ID耗时: " + (likeQueryEnd - likeQueryStart) + "ms, 点赞数量: " + likedJobIds.size());
+        log.info("【性能日志】查询用户点赞职位ID耗时: {}ms, 点赞数量: {}", (likeQueryEnd - likeQueryStart), likedJobIds.size());
         
         // 2. 批量查询这些职位的详细信息
         long jobsQueryStart = System.currentTimeMillis();
@@ -77,7 +79,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             .list();
             
         if (likedJobs.isEmpty()) {
-            System.out.println("【性能日志】没有找到有效的职位信息，返回空列表");
+            log.info("【性能日志】没有找到有效的职位信息，返回空列表");
             return PageUtil.build(page, new ArrayList<>());
         }
             
@@ -95,7 +97,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         });
         
         long jobsQueryEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】批量查询点赞职位详情耗时: " + (jobsQueryEnd - jobsQueryStart) + "ms, 职位数量: " + likedJobs.size());
+        log.info("【性能日志】批量查询点赞职位详情耗时: {}ms, 职位数量: {}", (jobsQueryEnd - jobsQueryStart), likedJobs.size());
         
         // 3. 批量获取所需的数据，避免单个查询
         
@@ -119,7 +121,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             .collect(Collectors.toMap(Users::getId, user -> user, (u1, u2) -> u1));
             
         long userQueryEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】批量查询用户信息耗时: " + (userQueryEnd - userQueryStart) + "ms, 用户数量: " + users.size());
+        log.info("【性能日志】批量查询用户信息耗时: {}ms, 用户数量: {}", (userQueryEnd - userQueryStart), users.size());
         
         // 3.3 批量查询统计数据
         long statsQueryStart = System.currentTimeMillis();
@@ -138,7 +140,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
                 commentsCountMap.put(jobId, commentsCount);
             }
         } catch (Exception e) {
-            System.out.println("批量获取评论数失败: " + e.getMessage());
+            log.error("批量获取评论数失败", e);
             // 设置默认值
             jobIds.forEach(id -> commentsCountMap.put(id, 0));
         }
@@ -152,7 +154,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
                 favoritesCountMap.put(jobId, favoritesCount);
             }
         } catch (Exception e) {
-            System.out.println("批量获取收藏数失败: " + e.getMessage());
+            log.error("批量获取收藏数失败", e);
             // 设置默认值
             jobIds.forEach(id -> favoritesCountMap.put(id, 0));
         }
@@ -164,7 +166,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         }
         
         long statsQueryEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】批量查询统计数据耗时: " + (statsQueryEnd - statsQueryStart) + "ms");
+        log.info("【性能日志】批量查询统计数据耗时: {}ms", (statsQueryEnd - statsQueryStart));
         
         // 3.4 批量查询点赞和收藏状态
         // 由于这是点赞列表，我们已经知道所有职位都是被点赞的
@@ -179,7 +181,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             Map<Integer, Boolean> tempFavoriteMap = jobsService.getJobFavoriteService().batchGetFavoriteStatus(jobIds, userId);
             favoriteMap.putAll(tempFavoriteMap);
         } catch (Exception e) {
-            System.out.println("批量获取收藏状态失败: " + e.getMessage());
+            log.error("批量获取收藏状态失败", e);
             // 设置默认值
             jobIds.forEach(id -> favoriteMap.put(id, false));
         }
@@ -203,11 +205,11 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         }
         
         long dtoConvertEnd = System.currentTimeMillis();
-        System.out.println("【性能日志】优化后的DTO批量转换耗时: " + (dtoConvertEnd - dtoConvertStart) + "ms");
+        log.info("【性能日志】优化后的DTO批量转换耗时: {}ms", (dtoConvertEnd - dtoConvertStart));
         
         // 5. 构建分页结果
         long endTime = System.currentTimeMillis();
-        System.out.println("【性能日志】获取用户点赞职位完成 - 总耗时: " + (endTime - startTime) + "ms");
+        log.info("【性能日志】获取用户点赞职位完成 - 总耗时: {}ms", (endTime - startTime));
         
         return PageUtil.build(page, result);
     }
@@ -219,7 +221,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         // 验证职位是否存在 (保留现有逻辑)
         Jobs job = jobsService.getById(dto.getJobId());
         if (job == null) {
-            System.out.println("职位不存在，职位ID: " + dto.getJobId());
+            log.warn("职位不存在，职位ID: {}", dto.getJobId());
             return;
         }
         
@@ -231,10 +233,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
         
         // 记录操作结果
         String actionName = status == 1 ? "点赞" : "取消点赞";
-        System.out.println(actionName + "操作完成，职位ID: " + dto.getJobId() + 
-                           ", 用户ID: " + userId + 
-                           ", 状态: " + status +
-                           ", 影响行数: " + affected);
+        log.info("{}操作完成，职位ID: {}, 用户ID: {}, 状态: {}, 影响行数: {}", actionName, dto.getJobId(), userId, status, affected);
     }
     
     /**
@@ -252,7 +251,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
      */
     public boolean isJobLikedByUser(Integer jobId, String userId) {
         // 添加调试日志
-        System.out.println("检查点赞状态 - jobId: " + jobId + ", userId: " + userId);
+        log.debug("检查点赞状态 - jobId: {}, userId: {}", jobId, userId);
         
         boolean result = this.lambdaQuery()
             .eq(JobLikes::getJobId, jobId)
@@ -260,7 +259,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             .eq(JobLikes::getStatus, 1) // 只检查有效点赞
             .exists();
             
-        System.out.println("点赞状态查询结果: " + result);
+        log.debug("点赞状态查询结果: {}", result);
         return result;
     }
     
@@ -277,7 +276,7 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
     // 添加批量查询点赞状态的方法
     public Map<Integer, Boolean> batchGetLikeStatus(List<Integer> jobIds, String userId) {
         long startTime = System.currentTimeMillis();
-        System.out.println("【性能日志】开始批量查询点赞状态 - 职位数量: " + jobIds.size());
+        log.info("【性能日志】开始批量查询点赞状态 - 职位数量: {}", jobIds.size());
         
         Map<Integer, Boolean> result = new HashMap<>();
         
@@ -304,12 +303,11 @@ public class JobLikesService extends ServiceImpl<JobLikesMapper, JobLikes> {
             }
             
             long endTime = System.currentTimeMillis();
-            System.out.println("【性能日志】批量查询点赞状态完成 - 耗时: " + (endTime - startTime) + 
-                    "ms, 已点赞数量: " + likesList.size() + "/" + jobIds.size());
+            log.info("【性能日志】批量查询点赞状态完成 - 耗时: {}ms, 已点赞数量: {}/{}", (endTime - startTime), likesList.size(), jobIds.size());
             
             return result;
         } catch (Exception e) {
-            System.out.println("【性能日志】批量查询点赞状态异常: " + e.getMessage());
+            log.error("【性能日志】批量查询点赞状态异常", e);
             return result;
         }
     }

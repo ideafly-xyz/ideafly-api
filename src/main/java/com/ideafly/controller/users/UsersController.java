@@ -9,6 +9,7 @@ import com.ideafly.service.impl.users.UsersService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -16,6 +17,7 @@ import javax.servlet.http.HttpServletRequest;
 @Tag(name = "用户相关接口", description = "用户相关功能接口")
 @RestController
 @RequestMapping("/api/users")
+@Slf4j
 public class UsersController {
 
     @Resource
@@ -31,12 +33,12 @@ public class UsersController {
         if (uid == null) {
             return R.error("用户未登录");
         }
-        
+        log.info("获取当前用户信息: userId={}", uid);
         Users user = usersService.getById(uid);
         if (user == null) {
             return R.error("用户不存在");
         }
-        
+        log.info("获取当前用户信息成功: username={}", user.getUsername());
         return R.success(user);
     }
 
@@ -50,10 +52,7 @@ public class UsersController {
         if (uid == null) {
             return R.error("用户未登录");
         }
-        
-        System.out.println("【控制器调试日志】接收到的UpdateUserInputDto: " + dto);
-        System.out.println("【控制器调试日志】个人简介personalBio值: " + dto.getPersonalBio());
-        
+        log.info("更新用户信息: userId={} dto={} personalBio={} ", uid, dto, dto.getPersonalBio());
         usersService.updateUser(dto, uid);
         return R.success(Boolean.TRUE);
     }
@@ -68,6 +67,7 @@ public class UsersController {
         if (user == null) {
             return R.error("用户不存在");
         }
+        log.info("获取指定用户信息成功: userId={} username={}", userId, user.getUsername());
         return R.success(user);
     }
 }

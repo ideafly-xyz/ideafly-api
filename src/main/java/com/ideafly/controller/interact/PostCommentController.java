@@ -13,6 +13,7 @@ import com.ideafly.service.impl.interact.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -23,6 +24,7 @@ import java.util.Map;
 @Tag(name = "评论相关接口", description = "评论相关接口")
 @RestController
 @RequestMapping("/api/comments")
+@Slf4j
 public class PostCommentController {
 
     @Resource
@@ -45,16 +47,15 @@ public class PostCommentController {
     @PostMapping("list")
     @Operation(summary = "获取父评论列表(游标分页)", description = "使用游标分页获取父评论列表")
     public R<ParentCommentCursorDto> getParentCommentsByCursor(@RequestBody JobCommentPageDto request) {
-        System.out.println("===== 父评论列表请求 =====");
-        System.out.println("请求参数: " + request);
-        
+        log.info("===== 父评论列表请求 =====");
+        log.info("请求参数: {}", request);
+
         ParentCommentCursorDto result = commentService.getParentCommentsByCursor(request);
-        
-        System.out.println("===== 父评论列表响应 =====");
-        System.out.println("响应结果: 评论数=" + (result.getRecords() != null ? result.getRecords().size() : 0) + 
-                           ", nextCursor=" + result.getNextCursor() + 
-                           ", hasMore=" + result.getHasMore());
-        
+
+        int count = result.getRecords() != null ? result.getRecords().size() : 0;
+        log.info("===== 父评论列表响应 =====");
+        log.info("响应结果: 评论数={}, nextCursor={}, hasMore={}", count, result.getNextCursor(), result.getHasMore());
+
         return R.success(result);
     }
     
@@ -62,21 +63,15 @@ public class PostCommentController {
     @PostMapping("loadMoreChildren")
     @Operation(summary = "加载更多子评论", description = "根据父评论ID加载更多子评论")
     public R<ChildCommentCursorDto> loadMoreChildComments(@RequestBody JobLoadMoreChildrenDto request) {
-        System.out.println("===== 加载更多子评论请求 =====");
-        System.out.println("请求参数: jobId=" + request.getJobId() + 
-                          ", parentId=" + request.getParentId() + 
-                          ", cursor=" + request.getCursor());
-        
-        // 调用新的服务方法加载更多子评论
+        log.info("===== 加载更多子评论请求 =====");
+        log.info("请求参数: jobId={}, parentId={}, cursor={}", request.getJobId(), request.getParentId(), request.getCursor());
+
         ChildCommentCursorDto result = commentService.loadMoreChildComments(request);
-        
-        System.out.println("===== 加载更多子评论响应 =====");
-        System.out.println("响应结果: 子评论数=" + 
-                          (result.getRecords() != null ? result.getRecords().size() : 0) + 
-                          ", nextCursor=" + result.getNextCursor() + 
-                          ", hasMore=" + result.getHasMore() +
-                          ", 总数=" + result.getTotal());
-        
+
+        int size = result.getRecords() != null ? result.getRecords().size() : 0;
+        log.info("===== 加载更多子评论响应 =====");
+        log.info("响应结果: 子评论数={}, nextCursor={}, hasMore={}, 总数={}", size, result.getNextCursor(), result.getHasMore(), result.getTotal());
+
         return R.success(result);
     }
     
@@ -90,16 +85,16 @@ public class PostCommentController {
     @NoAuth
     @GetMapping("childrenCount")
     @Operation(summary = "获取子评论数量", description = "获取某个顶级评论的子评论数量")
-    public R<Integer> getChildrenCount(@RequestParam("job_id") Integer jobId, 
+    public R<Integer> getChildrenCount(@RequestParam("job_id") Integer jobId,
                                         @RequestParam("parent_id") Integer parentId) {
-        System.out.println("===== 获取子评论数量请求 =====");
-        System.out.println("请求参数: jobId=" + jobId + ", parentId=" + parentId);
-        
+        log.info("===== 获取子评论数量请求 =====");
+        log.info("请求参数: jobId={}, parentId={}", jobId, parentId);
+
         int childrenCount = commentService.getChildCommentsCount(jobId, parentId);
-        
-        System.out.println("===== 获取子评论数量响应 =====");
-        System.out.println("响应结果: 子评论数量=" + childrenCount);
-        
+
+        log.info("===== 获取子评论数量响应 =====");
+        log.info("响应结果: 子评论数量={}", childrenCount);
+
         return R.success(childrenCount);
     }
 } 

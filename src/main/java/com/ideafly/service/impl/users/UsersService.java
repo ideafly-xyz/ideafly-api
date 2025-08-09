@@ -8,6 +8,7 @@ import com.ideafly.mapper.users.UsersMapper;
 import com.ideafly.model.users.Users;
 
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
 
@@ -17,38 +18,39 @@ import java.util.Objects;
  * 用户服务
  */
 @Service
+@Slf4j
 public class UsersService extends ServiceImpl<UsersMapper, Users> {
     public Users getUserByMobile(String mobile) {
         return this.lambdaQuery().eq(Users::getMobile, mobile).one();
     }
 
     public void updateUser(UpdateUserInputDto userDto, String userId) {
-        System.out.println("【服务调试日志】接收到的UpdateUserInputDto: " + userDto);
-        System.out.println("【服务调试日志】个人简介personalBio原始值: " + userDto.getPersonalBio());
+        log.info("【服务调试日志】接收到的UpdateUserInputDto: {}", userDto);
+        log.info("【服务调试日志】个人简介personalBio原始值: {}", userDto.getPersonalBio());
         
         // 打印来自前端的所有DTO字段，帮助诊断
-        System.out.println("【服务调试日志】DTO字段详情：");
-        System.out.println("- nickname: " + userDto.getNickname());
-        System.out.println("- personalBio: " + userDto.getPersonalBio());
-        System.out.println("- location: " + userDto.getLocation());
-        System.out.println("- websiteUrl: " + userDto.getWebsiteUrl());
-        System.out.println("- gender: " + userDto.getGender());
+        log.debug("【服务调试日志】DTO字段详情：");
+        log.debug("- nickname: {}", userDto.getNickname());
+        log.debug("- personalBio: {}", userDto.getPersonalBio());
+        log.debug("- location: {}", userDto.getLocation());
+        log.debug("- websiteUrl: {}", userDto.getWebsiteUrl());
+        log.debug("- gender: {}", userDto.getGender());
         
         Users users = BeanUtil.copyProperties(userDto, Users.class);
-        System.out.println("【服务调试日志】复制属性后的Users对象: " + users);
-        System.out.println("【服务调试日志】复制属性后的bio值: " + users.getBio());
+        log.debug("【服务调试日志】复制属性后的Users对象: {}", users);
+        log.debug("【服务调试日志】复制属性后的bio值: {}", users.getBio());
         
         // 特殊处理personalBio到bio的映射
         if (userDto.getPersonalBio() != null) {
             users.setBio(userDto.getPersonalBio());
-            System.out.println("【服务调试日志】手动设置后的bio值: " + users.getBio());
+            log.debug("【服务调试日志】手动设置后的bio值: {}", users.getBio());
         } else {
-            System.out.println("【服务调试日志】personalBio为null，不进行映射");
+            log.debug("【服务调试日志】personalBio为null，不进行映射");
         }
         
         users.setId(userId);
         boolean updated = update(users, new UpdateWrapper<Users>().eq("id", users.getId()));
-        System.out.println("【服务调试日志】数据库更新结果: " + updated);
+        log.info("【服务调试日志】数据库更新结果: {}", updated);
     }
 
     public Users getOrAddByMobile(String mobile) {

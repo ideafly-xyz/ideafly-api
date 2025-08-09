@@ -15,6 +15,7 @@ import com.ideafly.model.users.Users;
 import com.ideafly.service.impl.users.UsersService;
 import com.ideafly.utils.CursorUtils;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComment> {
     @Resource
     private UsersService usersService;
@@ -93,16 +95,16 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         Integer pageSize = request.getPageSize() != null ? request.getPageSize() : DEFAULT_PARENT_COMMENTS_PAGE_SIZE;
         String cursor = request.getCursor();
         
-        System.out.println("===== 父评论游标分页请求 =====");
-        System.out.println("请求参数: jobId=" + jobId + ", cursor=" + cursor + ", pageSize=" + pageSize);
+        log.info("===== 父评论游标分页请求 =====");
+        log.info("请求参数: jobId={}, cursor={}, pageSize={}", jobId, cursor, pageSize);
         
         // 构建查询条件
         LambdaQueryWrapper<ParentComment> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ParentComment::getJobId, jobId);
         queryWrapper.eq(ParentComment::getParentCommentId, 0); // 父评论的parentCommentId为0
         
-        System.out.println("===== 查询条件日志 =====");
-        System.out.println("查询职位ID: " + jobId);
+        log.debug("===== 查询条件日志 =====");
+        log.debug("查询职位ID: {}", jobId);
         
         // 处理游标
         if (cursor != null && !cursor.isEmpty()) {
@@ -116,14 +118,13 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                 LocalDateTime initialCursorTime = LocalDateTime.ofInstant(timestamp.toInstant(), 
                                                               java.time.ZoneId.systemDefault());
                 
-                System.out.println("游标解析: 时间=" + CURSOR_FORMATTER.format(initialCursorTime) + ", ID=" + id);
+                log.debug("游标解析: 时间={}, ID={}", CURSOR_FORMATTER.format(initialCursorTime), id);
                 
                 // 检查时间戳是否是未来日期，如果是则使用当前时间
                 LocalDateTime now = LocalDateTime.now();
                 final LocalDateTime cursorTime;
                 if (initialCursorTime.isAfter(now)) {
-                    System.out.println("警告: 检测到未来日期游标 " + CURSOR_FORMATTER.format(initialCursorTime) + 
-                                    "，将使用当前时间: " + CURSOR_FORMATTER.format(now));
+                    log.warn("检测到未来日期游标 {} ，将使用当前时间 {}", CURSOR_FORMATTER.format(initialCursorTime), CURSOR_FORMATTER.format(now));
                     cursorTime = now;
                 } else {
                     cursorTime = initialCursorTime;
@@ -137,13 +138,12 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                         .lt(ParentComment::getId, id)
                     )
                 );
-                System.out.println("查询条件: 创建时间 < " + CURSOR_FORMATTER.format(cursorTime) + " 或 (创建时间 = " + CURSOR_FORMATTER.format(cursorTime) + " 且 ID < " + id + ")");
+                log.debug("查询条件: 创建时间 < {} 或 (创建时间 = {} 且 ID < {})", CURSOR_FORMATTER.format(cursorTime), CURSOR_FORMATTER.format(cursorTime), id);
             } catch (Exception e) {
-                System.out.println("游标解析失败: " + e.getMessage());
-                e.printStackTrace();
+                log.error("游标解析失败", e);
             }
         } else {
-            System.out.println("无游标，查询最新评论");
+            log.info("无游标，查询最新评论");
         }
         
         // 排序并限制结果数量
@@ -153,12 +153,11 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         // 执行查询
         List<ParentComment> parentComments = this.list(queryWrapper);
         
-        System.out.println("查询结果: 获取到 " + parentComments.size() + " 条评论");
+        log.info("查询结果: 获取到 {} 条评论", parentComments.size());
         if (!parentComments.isEmpty()) {
             ParentComment first = parentComments.get(0);
             ParentComment last = parentComments.get(parentComments.size() - 1);
-            System.out.println("结果范围: 第一条ID=" + first.getId() + ", 时间=" + CURSOR_FORMATTER.format(first.getCreatedAt()) + 
-                              "; 最后一条ID=" + last.getId() + ", 时间=" + CURSOR_FORMATTER.format(last.getCreatedAt()));
+            log.debug("结果范围: 第一条ID={}, 时间={}; 最后一条ID={}, 时间={}", first.getId(), CURSOR_FORMATTER.format(first.getCreatedAt()), last.getId(), CURSOR_FORMATTER.format(last.getCreatedAt()));
         }
         
         // 处理查询结果
@@ -171,9 +170,7 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
             // 使用页面最后一条评论作为游标，而不是下一条评论
             ParentComment lastComment = parentComments.get(pageSize-1);
             nextCursor = CursorUtils.encodeCursor(lastComment.getCreatedAt(), lastComment.getId());
-            System.out.println("生成下一页游标: ID=" + lastComment.getId() + ", 时间=" + 
-                              CURSOR_FORMATTER.format(lastComment.getCreatedAt()) + 
-                              ", 游标=" + nextCursor);
+            log.debug("生成下一页游标: ID={}, 时间={}, 游标={}", lastComment.getId(), CURSOR_FORMATTER.format(lastComment.getCreatedAt()), nextCursor);
                               
             // 移除多余的数据
             parentComments = parentComments.subList(0, pageSize);
@@ -204,10 +201,8 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
             }
         }
         
-        System.out.println("===== 父评论游标分页响应 =====");
-        System.out.println("响应结果: 父评论数=" + parentComments.size() + 
-                           ", nextCursor=" + nextCursor + 
-                           ", hasMore=" + hasMore);
+        log.info("===== 父评论游标分页响应 =====");
+        log.info("响应结果: 父评论数={}, nextCursor={}, hasMore={}", parentComments.size(), nextCursor, hasMore);
         
         return new ParentCommentCursorDto(parentComments, nextCursor, hasMore);
     }
@@ -238,16 +233,16 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         Integer parentId = request.getParentId();
         String cursor = request.getCursor();
         
-        System.out.println("===== 加载更多子评论请求 =====");
-        System.out.println("请求参数: jobId=" + jobId + ", parentId=" + parentId + ", cursor=" + cursor);
+        log.info("===== 加载更多子评论请求 =====");
+        log.info("请求参数: jobId={}, parentId={}, cursor={}", jobId, parentId, cursor);
         
         // 构建查询
         LambdaQueryWrapper<ChildComment> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ChildComment::getJobId, jobId);
         queryWrapper.eq(ChildComment::getParentCommentId, parentId);
         
-        System.out.println("===== 子评论查询条件日志 =====");
-        System.out.println("查询职位ID: " + jobId + ", 父评论ID: " + parentId);
+        log.debug("===== 子评论查询条件日志 =====");
+        log.debug("查询职位ID: {}, 父评论ID: {}", jobId, parentId);
         
         // 处理游标
         if (cursor != null && !cursor.isEmpty()) {
@@ -261,14 +256,13 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                 LocalDateTime initialCursorTime = LocalDateTime.ofInstant(timestamp.toInstant(), 
                                                              java.time.ZoneId.systemDefault());
                 
-                System.out.println("子评论游标解析: 时间=" + CURSOR_FORMATTER.format(initialCursorTime) + ", ID=" + id);
+                log.debug("子评论游标解析: 时间={}, ID={}", CURSOR_FORMATTER.format(initialCursorTime), id);
                 
                 // 检查时间戳是否是未来日期，如果是则使用当前时间
                 LocalDateTime now = LocalDateTime.now();
                 final LocalDateTime cursorTime;
                 if (initialCursorTime.isAfter(now)) {
-                    System.out.println("警告: 检测到未来日期游标 " + CURSOR_FORMATTER.format(initialCursorTime) + 
-                                    "，将使用当前时间: " + CURSOR_FORMATTER.format(now));
+                    log.warn("检测到未来日期游标 {} ，将使用当前时间 {}", CURSOR_FORMATTER.format(initialCursorTime), CURSOR_FORMATTER.format(now));
                     cursorTime = now;
                 } else {
                     cursorTime = initialCursorTime;
@@ -283,15 +277,12 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
                     )
                 );
                 
-                System.out.println("子评论查询条件: 创建时间 < " + CURSOR_FORMATTER.format(cursorTime) + 
-                               " 或 (创建时间 = " + CURSOR_FORMATTER.format(cursorTime) + 
-                               " 且 ID < " + id + ")");
+                log.debug("子评论查询条件: 创建时间 < {} 或 (创建时间 = {} 且 ID < {})", CURSOR_FORMATTER.format(cursorTime), CURSOR_FORMATTER.format(cursorTime), id);
             } catch (Exception e) {
-                System.out.println("子评论游标解析失败: " + e.getMessage());
-                e.printStackTrace();
+                log.error("子评论游标解析失败", e);
             }
         } else {
-            System.out.println("无游标，查询最新子评论");
+            log.info("无游标，查询最新子评论");
         }
         
         // 排序并限制结果数量
@@ -301,14 +292,11 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         // 执行查询
         List<ChildComment> childComments = childCommentMapper.selectList(queryWrapper);
         
-        System.out.println("子评论查询结果: 获取到 " + childComments.size() + " 条子评论");
+        log.info("子评论查询结果: 获取到 {} 条子评论", childComments.size());
         if (!childComments.isEmpty()) {
             ChildComment first = childComments.get(0);
             ChildComment last = childComments.get(childComments.size() - 1);
-            System.out.println("子评论结果范围: 第一条ID=" + first.getId() + ", 时间=" + 
-                           CURSOR_FORMATTER.format(first.getCreatedAt()) + 
-                           "; 最后一条ID=" + last.getId() + ", 时间=" + 
-                           CURSOR_FORMATTER.format(last.getCreatedAt()));
+            log.debug("子评论结果范围: 第一条ID={}, 时间={}; 最后一条ID={}, 时间={}", first.getId(), CURSOR_FORMATTER.format(first.getCreatedAt()), last.getId(), CURSOR_FORMATTER.format(last.getCreatedAt()));
         }
         
         // 处理查询结果
@@ -321,9 +309,7 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
             // 使用当前页最后一条评论作为游标，而不是下一条评论
             ChildComment lastComment = childComments.get(DEFAULT_CHILD_COMMENTS_PAGE_SIZE-1);
             nextCursor = CursorUtils.encodeCursor(lastComment.getCreatedAt(), lastComment.getId());
-            System.out.println("生成子评论下一页游标: ID=" + lastComment.getId() + ", 时间=" + 
-                            CURSOR_FORMATTER.format(lastComment.getCreatedAt()) + 
-                            ", 游标=" + nextCursor);
+            log.debug("生成子评论下一页游标: ID={}, 时间={}, 游标={}", lastComment.getId(), CURSOR_FORMATTER.format(lastComment.getCreatedAt()), nextCursor);
             
             // 移除多余的数据
             childComments = childComments.subList(0, DEFAULT_CHILD_COMMENTS_PAGE_SIZE);
@@ -335,11 +321,8 @@ public class CommentService extends ServiceImpl<ParentCommentMapper, ParentComme
         // 获取子评论总数
         int total = getChildCommentsCount(jobId, parentId);
         
-        System.out.println("===== 加载更多子评论响应 =====");
-        System.out.println("响应结果: 子评论数=" + childComments.size() + 
-                         ", nextCursor=" + nextCursor + 
-                         ", hasMore=" + hasMore +
-                         ", 总数=" + total);
+        log.info("===== 加载更多子评论响应 =====");
+        log.info("响应结果: 子评论数={}, nextCursor={}, hasMore={}, 总数={} ", childComments.size(), nextCursor, hasMore, total);
         
         // 返回新的DTO
         return new ChildCommentCursorDto(childComments, nextCursor, hasMore, total);

@@ -5,12 +5,13 @@ import com.ideafly.common.R;
 import com.ideafly.common.RequestUtils;
 import com.ideafly.dto.job.*;
 import com.ideafly.model.Jobs;
-import com.ideafly.service.impl.JobsService;
+import com.ideafly.service.impl.PostsService;
 import com.ideafly.service.impl.interact.CommentService;
 import com.ideafly.service.impl.interact.JobLikesService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -20,14 +21,37 @@ import javax.validation.Valid;
 @Tag(name = "工作相关接口", description = "工作相关接口")
 @RestController
 @RequestMapping("/api/jobs")
-public class JobH5Controller {
+@Slf4j
+public class PostController {
 
     @Resource
-    private JobsService jobService;
+    private PostsService jobService;
     @Resource
     private JobLikesService jobLikesService;
     @Resource
     private CommentService commentService;
+
+    /**
+     * 发布职位接口
+     */
+    @PostMapping("createJob")
+    public R<JobDetailOutputDto> createJob(@Valid @RequestBody CreateJobInputDto request, HttpServletRequest httpRequest) { //  使用 @Valid 注解开启参数校验
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        if (userId == null) {
+            log.warn("创建职位失败 - 用户未登录");
+            return R.error("用户未登录");
+        }
+        
+        log.info("创建职位 - 用户ID: {}, 职位标题: {}", userId, request.getPostTitle());
+        
+        Jobs job = jobService.createJob(request, userId);
+        // 转换为包含完整信息的DTO
+        JobDetailOutputDto jobDto = jobService.convertDto(job);
+        
+        log.info("职位创建成功 - 职位ID: {}, 用户ID: {}", job.getId(), userId);
+        
+        return R.success(jobDto);
+    }
     
     @NoAuth
     @GetMapping("list")
@@ -44,21 +68,16 @@ public class JobH5Controller {
         request.setMinCursor(minCursor);
         
         // 添加日志，方便调试分页问题
-        System.out.println("【JobH5Controller】获取职位列表，" + 
-                "每页数量: " + request.getPageSize() + 
-                ", 使用游标分页" +
-                ", 最大游标: " + request.getMaxCursor() +
-                ", 最小游标: " + request.getMinCursor());
+        log.info("获取职位列表 - 每页数量: {}, 最大游标: {}, 最小游标: {}", 
+                request.getPageSize(), request.getMaxCursor(), request.getMinCursor());
         
         // 直接调用游标分页方法
         CursorResponseDto<JobDetailOutputDto> result = jobService.getJobsWithCursor(request);
         
         // 记录游标分页结果
-        System.out.println("【JobH5Controller】获取职位列表结果(游标分页)，记录数: " + result.getRecords().size() + 
-                ", 下一个maxCursor: " + result.getNextMaxCursor() +
-                ", 下一个minCursor: " + result.getNextMinCursor() +
-                ", 是否有更多历史内容: " + result.getHasMoreHistory() +
-                ", 是否有更多新内容: " + result.getHasMoreNew());
+        log.info("获取职位列表结果(游标分页) - 记录数: {}, 下一个maxCursor: {}, 下一个minCursor: {}, 是否有更多历史内容: {}, 是否有更多新内容: {}", 
+                result.getRecords().size(), result.getNextMaxCursor(), result.getNextMinCursor(), 
+                result.getHasMoreHistory(), result.getHasMoreNew());
         
         return R.success(result);
     }
@@ -72,6 +91,7 @@ public class JobH5Controller {
         // 获取当前用户ID
         String userId = RequestUtils.getCurrentUserId(httpRequest);
         if (userId == null) {
+            log.warn("获取用户作品列表失败 - 用户未登录");
             return R.error("用户未登录");
         }
         
@@ -81,12 +101,8 @@ public class JobH5Controller {
         }
         
         // 打印详细请求日志，用于调试
-        System.out.println("【JobH5Controller】获取用户作品列表详细参数:");
-        System.out.println("  - 用户ID: " + userId);
-        System.out.println("  - 页大小: " + request.getPageSize());
-        System.out.println("  - maxCursor: " + request.getMaxCursor());
-        System.out.println("  - minCursor: " + request.getMinCursor());
-        System.out.println("  - 请求头: " + request);
+        log.info("获取用户作品列表 - 用户ID: {}, 页大小: {}, maxCursor: {}, minCursor: {}", 
+                userId, request.getPageSize(), request.getMaxCursor(), request.getMinCursor());
         
         // 检查游标值是否有效
         if (request.getMaxCursor() != null) {
@@ -95,14 +111,14 @@ public class JobH5Controller {
                 String cursor = request.getMaxCursor();
                 byte[] decodedBytes = java.util.Base64.getDecoder().decode(cursor);
                 String jsonStr = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
-                System.out.println("【游标检查】maxCursor解码后: " + jsonStr);
+                log.debug("maxCursor解码后: {}", jsonStr);
             } catch (Exception e) {
-                System.out.println("【警告】无效的maxCursor格式: " + request.getMaxCursor() + ", 错误: " + e.getMessage());
+                log.warn("无效的maxCursor格式: {}, 错误: {}", request.getMaxCursor(), e.getMessage());
                 // 如果解析失败，清除游标值避免后续查询出错
                 request.setMaxCursor(null);
             }
         } else {
-            System.out.println("【警告】maxCursor为null，如果是首次加载则正常，如果是上拉加载更多则表示客户端未正确传递上一次的nextMaxCursor");
+            log.debug("maxCursor为null，如果是首次加载则正常，如果是上拉加载更多则表示客户端未正确传递上一次的nextMaxCursor");
         }
         
         // 获取用户发布的职位（专用游标分页方法）
@@ -111,16 +127,14 @@ public class JobH5Controller {
         // 打印响应日志
         if (result instanceof CursorResponseDto) {
             CursorResponseDto<?> cursorResponse = (CursorResponseDto<?>) result;
-            System.out.println("【JobH5Controller】获取用户作品列表结果:");
-            System.out.println("  - 记录数: " + cursorResponse.getRecords().size());
-            System.out.println("  - 下一个maxCursor: " + cursorResponse.getNextMaxCursor());
-            System.out.println("  - 下一个minCursor: " + cursorResponse.getNextMinCursor());
-            System.out.println("  - 是否有更多历史: " + cursorResponse.getHasMoreHistory());
-            System.out.println("  - 是否有更多新内容: " + cursorResponse.getHasMoreNew());
+            log.info("获取用户作品列表结果 - 记录数: {}, 下一个maxCursor: {}, 下一个minCursor: {}, 是否有更多历史: {}, 是否有更多新内容: {}", 
+                    cursorResponse.getRecords().size(), cursorResponse.getNextMaxCursor(), 
+                    cursorResponse.getNextMinCursor(), cursorResponse.getHasMoreHistory(), 
+                    cursorResponse.getHasMoreNew());
             
             // 检查返回的nextMaxCursor是否为null或为空
             if (cursorResponse.getNextMaxCursor() == null || cursorResponse.getNextMaxCursor().isEmpty()) {
-                System.out.println("【严重警告】返回的nextMaxCursor为null或空，这将导致前端无法正确加载下一页数据");
+                log.warn("返回的nextMaxCursor为null或空，这将导致前端无法正确加载下一页数据");
             }
         }
         
@@ -139,6 +153,7 @@ public class JobH5Controller {
         // 获取当前用户ID
         String userId = RequestUtils.getCurrentUserId(httpRequest);
         if (userId == null) {
+            log.warn("获取关注用户帖子失败 - 用户未登录");
             return R.error("用户未登录");
         }
         
@@ -146,22 +161,10 @@ public class JobH5Controller {
         JobListInputDto request = new JobListInputDto();
         request.setPageSize(pageSize);
         
+        log.info("获取关注用户帖子 - 用户ID: {}, 页大小: {}", userId, pageSize);
+        
         // 调用新的服务方法获取关注用户的帖子
         return R.success(jobService.getFollowingUserJobs(request, userId));
     }
     
-    /**
-     * 发布职位接口
-     */
-    @PostMapping("createJob")
-    public R<JobDetailOutputDto> createJob(@Valid @RequestBody CreateJobInputDto request, HttpServletRequest httpRequest) { //  使用 @Valid 注解开启参数校验
-        String userId = RequestUtils.getCurrentUserId(httpRequest);
-        if (userId == null) {
-            return R.error("用户未登录");
-        }
-        Jobs job = jobService.createJob(request, userId);
-        // 转换为包含完整信息的DTO
-        JobDetailOutputDto jobDto = jobService.convertDto(job);
-        return R.success(jobDto);
-    }
 }

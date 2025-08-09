@@ -11,6 +11,7 @@ import com.ideafly.service.impl.interact.JobFavoriteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -19,6 +20,7 @@ import javax.validation.Valid;
 @Tag(name = "收藏相关接口", description = "收藏相关功能接口")
 @RestController
 @RequestMapping("/api/jobs/favorites")
+@Slf4j
 public class PostFavoritesController {
 
     @Resource
@@ -34,6 +36,8 @@ public class PostFavoritesController {
         if (userId == null) {
             return R.error("用户未登录");
         }
+        log.info("获取收藏职位列表: userId={}, pageSize={}, maxCursor={}, minCursor={}",
+                userId, request.getPageSize(), request.getMaxCursor(), request.getMinCursor());
         return R.success(jobFavoriteService.getUserFavoriteJobs(request, userId));
     }
 
@@ -47,14 +51,13 @@ public class PostFavoritesController {
         if (userId == null) {
             return R.error("用户未登录");
         }
-        System.out.println("收到收藏请求 - JobID: " + request.getJobId() + ", isFavorite: " + request.getIsFavorite() + ", 用户ID: " + userId);
+        log.info("收到收藏请求 - jobId={}, isFavorite={}, userId={}", request.getJobId(), request.getIsFavorite(), userId);
         try {
             jobFavoriteService.addOrRemoveFavorite(request, userId);
-            System.out.println("收藏操作成功 - JobID: " + request.getJobId() + ", isFavorite: " + request.getIsFavorite());
+            log.info("收藏操作成功 - jobId={}, isFavorite={}", request.getJobId(), request.getIsFavorite());
             return R.success(Boolean.TRUE);
         } catch (Exception e) {
-            System.out.println("收藏操作失败 - " + e.getMessage());
-            e.printStackTrace();
+            log.error("收藏操作失败", e);
             return R.error("收藏失败: " + e.getMessage());
         }
     }
