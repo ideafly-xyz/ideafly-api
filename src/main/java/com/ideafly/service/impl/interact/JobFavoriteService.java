@@ -14,7 +14,6 @@ import com.ideafly.service.impl.PostsService;
 import com.ideafly.utils.CursorUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -27,7 +26,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
 public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavorite> {
 
     @Resource
@@ -38,7 +36,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
      */
     public Object getUserFavoriteJobs(JobListInputDto request, String userId) {
         // long startTime = System.currentTimeMillis();
-        log.info("【性能日志】开始获取用户收藏职位列表 - 参数: {}", request);
+        System.out.println("【性能日志】开始获取用户收藏职位列表 - 参数: " + request);
             return getUserFavoriteJobsWithCursor(request, userId);
         
     }
@@ -47,13 +45,13 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
      * 使用游标分页获取用户收藏的职位列表
      */
     private CursorResponseDto<JobDetailOutputDto> getUserFavoriteJobsWithCursor(JobListInputDto request, String userId) {
-        log.info("【性能日志】使用游标分页获取用户收藏职位列表");
+        System.out.println("【性能日志】使用游标分页获取用户收藏职位列表");
         long startTime = System.currentTimeMillis();
         
         // 获取当前用户ID
         if (userId == null) {
             // 用户未登录，返回空收藏列表
-            log.info("【性能日志】用户未登录，返回空收藏列表");
+            System.out.println("【性能日志】用户未登录，返回空收藏列表");
             return new CursorResponseDto<>(
                     new ArrayList<>(),
                     null,
@@ -90,7 +88,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         List<JobFavorite> favorites = this.list(favoriteWrapper);
         
         if (favorites.isEmpty()) {
-            log.info("【性能日志】用户没有收藏职位，返回空列表");
+            System.out.println("【性能日志】用户没有收藏职位，返回空列表");
             return new CursorResponseDto<>(
                     new ArrayList<>(),
                     maxCursor,
@@ -199,7 +197,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
             
             // 确保下一个maxCursor与请求的maxCursor不同
             if (nextMaxCursor.equals(maxCursor)) {
-                log.warn("【警告】新生成的maxCursor与请求的相同，可能导致重复数据");
+                System.out.println("【警告】新生成的maxCursor与请求的相同，可能导致重复数据");
                 // 如果查询条件正确但结果游标相同，说明已经没有更多数据了
                 // 覆盖hasMore标志，防止前端无限请求相同数据
                 hasMore = false;
@@ -245,7 +243,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 commentsCountMap.put(jobId, commentsCount);
             }
         } catch (Exception e) {
-            log.error("批量获取评论数失败", e);
+            System.out.println("批量获取评论数失败: " + e.getMessage());
             // 设置默认值
             jobIds.forEach(id -> commentsCountMap.put(id, 0));
         }
@@ -265,7 +263,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 likesCountMap.put(jobId, likesCount);
             }
         } catch (Exception e) {
-            log.error("批量获取点赞数失败", e);
+            System.out.println("批量获取点赞数失败: " + e.getMessage());
             // 设置默认值
             jobIds.forEach(id -> likesCountMap.put(id, 0));
         }
@@ -282,7 +280,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
             Map<Integer, Boolean> tempLikeMap = jobsService.getJobLikesService().batchGetLikeStatus(jobIds, userId);
             likeMap.putAll(tempLikeMap);
         } catch (Exception e) {
-            log.error("批量获取点赞状态失败", e);
+            System.out.println("批量获取点赞状态失败: " + e.getMessage());
             // 设置默认值
             jobIds.forEach(id -> likeMap.put(id, false));
         }
@@ -305,13 +303,13 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
             // 为每个DTO设置游标值，这样前端可以直接使用它来加载更多
             String cursor = CursorUtils.encodeCursor(job.getCreatedAt(), job.getId());
             dto.setCursor(cursor);
-            log.debug("【DTO游标设置】为记录 {} 设置游标: {}", job.getId(), cursor);
+            System.out.println("【DTO游标设置】为记录 " + job.getId() + " 设置游标: " + cursor);
             
             result.add(dto);
         }
         
         long endTime = System.currentTimeMillis();
-        log.info("【性能日志】游标分页获取用户收藏职位完成 - 耗时: {}ms", (endTime - startTime));
+        System.out.println("【性能日志】游标分页获取用户收藏职位完成 - 耗时: " + (endTime - startTime) + "ms");
         
         // 更新缓存和状态变量，以便前端可以通过getCachedUserFavorites和getUserFavoritesLoadingState获取
         this._cachedUserFavorites = result;
@@ -321,8 +319,9 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         this._hasMoreNewUserFavorites = isBackward ? hasMore : false;
         
         // 打印游标调试信息
-        log.info("【收藏游标】当前设置的游标值 - nextMaxCursor: {}, nextMinCursor: {}, 请求方向: {}",
-                this._userFavoritesMaxCursor, this._userFavoritesMinCursor, (isForward ? "前向(历史)" : isBackward ? "后向(新内容)" : "初始加载"));
+        System.out.println("【收藏游标】当前设置的游标值 - nextMaxCursor: " + this._userFavoritesMaxCursor + 
+                          ", nextMinCursor: " + this._userFavoritesMinCursor + 
+                          ", 请求方向: " + (isForward ? "前向(历史)" : isBackward ? "后向(新内容)" : "初始加载"));
         
         return new CursorResponseDto<>(
                 result,
@@ -343,7 +342,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         // 验证职位是否存在 (可选，如果业务需要)
         Jobs job = jobsService.getById(dto.getJobId());
         if (job == null) {
-            log.warn("职位不存在，职位ID: {}", dto.getJobId());
+            System.out.println("职位不存在，职位ID: " + dto.getJobId());
             return;
         }
         // 直接使用一条SQL完成插入或更新，实现原子操作
@@ -351,7 +350,10 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
         int affected = this.baseMapper.insertOrUpdateFavoriteStatus(dto.getJobId(), userId, status);
         // 记录操作结果
         String actionName = status == 1 ? "收藏" : "取消收藏";
-        log.info("{}操作完成，职位ID: {}, 用户ID: {}, 状态: {}, 影响行数: {}", actionName, dto.getJobId(), userId, status, affected);
+        System.out.println(actionName + "操作完成，职位ID: " + dto.getJobId() + 
+                           ", 用户ID: " + userId + 
+                           ", 状态: " + status +
+                           ", 影响行数: " + affected);
     }
     
     /**
@@ -415,7 +417,7 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
     // 添加批量查询收藏状态的方法
     public Map<Integer, Boolean> batchGetFavoriteStatus(List<Integer> jobIds, String userId) {
         long startTime = System.currentTimeMillis();
-        log.info("【性能日志】开始批量查询收藏状态 - 职位数量: {}", jobIds.size());
+        System.out.println("【性能日志】开始批量查询收藏状态 - 职位数量: " + jobIds.size());
         Map<Integer, Boolean> result = new HashMap<>();
         // 初始化默认状态为false
         for (Integer jobId : jobIds) {
@@ -436,10 +438,11 @@ public class JobFavoriteService extends ServiceImpl<JobFavoriteMapper, JobFavori
                 result.put(favorite.getJobId(), true);
             }
             long endTime = System.currentTimeMillis();
-            log.info("【性能日志】批量查询收藏状态完成 - 耗时: {}ms, 已收藏数量: {}/{}", (endTime - startTime), favoriteList.size(), jobIds.size());
+            System.out.println("【性能日志】批量查询收藏状态完成 - 耗时: " + (endTime - startTime) + 
+                    "ms, 已收藏数量: " + favoriteList.size() + "/" + jobIds.size());
             return result;
         } catch (Exception e) {
-            log.error("【性能日志】批量查询收藏状态异常", e);
+            System.out.println("【性能日志】批量查询收藏状态异常: " + e.getMessage());
             return result;
         }
     }
