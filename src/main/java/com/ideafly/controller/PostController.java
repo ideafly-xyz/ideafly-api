@@ -75,9 +75,9 @@ public class PostController {
         CursorResponseDto<JobDetailOutputDto> result = jobService.getJobsWithCursor(request);
         
         // 记录游标分页结果
-        log.info("获取职位列表结果(游标分页) - 记录数: {}, 下一个maxCursor: {}, 下一个minCursor: {}, 是否有更多历史内容: {}, 是否有更多新内容: {}", 
+        log.info("获取职位列表结果(游标分页) - 记录数: {}, 下一个maxCursor: {}, 下一个minCursor: {}, 是否有更多历史内容: {}, 是否有更多新内容: {}, 总记录数: {}", 
                 result.getRecords().size(), result.getNextMaxCursor(), result.getNextMinCursor(), 
-                result.getHasMoreHistory(), result.getHasMoreNew());
+                result.getHasMoreHistory(), result.getHasMoreNew(), result.getTotal());
         
         return R.success(result);
     }
