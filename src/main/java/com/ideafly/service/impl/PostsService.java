@@ -220,8 +220,6 @@ public class PostsService extends ServiceImpl<JobsMapper, Jobs> {
         }
         
         // 批量查询收藏和点赞状态
-        final Map<Integer, Boolean> favoriteMap = new HashMap<>();
-        final Map<Integer, Boolean> likeMap = new HashMap<>();
         
         // 批量查询点赞、收藏和评论数量
         final Map<Integer, Integer> likesCountMap = new HashMap<>();
@@ -253,7 +251,7 @@ public class PostsService extends ServiceImpl<JobsMapper, Jobs> {
             }
         }
         
-        // 转换DTO
+        // 转换为DTO
         return jobs.stream().map(job -> {
             JobDetailOutputDto dto = BeanUtil.copyProperties(job, JobDetailOutputDto.class);
             
@@ -393,6 +391,41 @@ public class PostsService extends ServiceImpl<JobsMapper, Jobs> {
         return job;
     }
     
+    /**
+     * 删除帖子
+     * @param jobId 帖子ID
+     * @param userId 操作用户ID
+     * @return 删除是否成功
+     */
+    public boolean deleteJob(Integer jobId, String userId) {
+        log.info("尝试删除帖子 - 帖子ID: {}, 操作用户ID: {}", jobId, userId);
+        if (jobId == null || userId == null) {
+            log.warn("删除帖子失败：jobId或userId为空");
+            return false;
+        }
+        
+        // 查找帖子，确保是该用户发布的
+        Jobs job = this.lambdaQuery()
+                        .eq(Jobs::getId, jobId)
+                        .eq(Jobs::getUserId, userId)
+                        .one();
+        
+        if (job == null) {
+            log.warn("删除帖子失败：未找到指定帖子或用户无权限 - 帖子ID: {}, 操作用户ID: {}", jobId, userId);
+            return false; // 帖子不存在或用户无权删除
+        }
+        
+        // 执行删除
+        boolean deleted = this.removeById(jobId);
+        if (deleted) {
+            log.info("帖子删除成功 - 帖子ID: {}", jobId);
+            // TODO: 这里可以考虑删除关联的点赞、收藏、评论等数据
+        } else {
+            log.error("帖子删除失败（数据库操作失败） - 帖子ID: {}", jobId);
+        }
+        return deleted;
+    }
+
     // 添加服务的getter方法
     public UsersService getUsersService() {
         return usersService;
@@ -600,7 +633,6 @@ public class PostsService extends ServiceImpl<JobsMapper, Jobs> {
         
         // 保存解析后的游标值，用于后续处理
         Map<String, Object> maxCursorValues = null;
-        Map<String, Object> minCursorValues = null;
         
         // 根据游标构建查询条件
         if (isForward) {

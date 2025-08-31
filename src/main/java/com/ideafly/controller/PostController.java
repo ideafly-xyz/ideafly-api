@@ -53,6 +53,36 @@ public class PostController {
         return R.success(jobDto);
     }
     
+    /**
+     * 删除帖子
+     * @param jobId 帖子ID
+     * @param httpRequest 请求
+     * @return 统一返回结果
+     */
+    @DeleteMapping("{jobId}")
+    public R<Void> deleteJob(@PathVariable Integer jobId, HttpServletRequest httpRequest) {
+        String userId = RequestUtils.getCurrentUserId(httpRequest);
+        if (userId == null) {
+            log.warn("删除帖子失败 - 用户未登录");
+            return R.error("用户未登录");
+        }
+        if (jobId == null || jobId <= 0) {
+            log.warn("删除帖子失败 - 帖子ID无效: {}", jobId);
+            return R.error("帖子ID无效");
+        }
+
+        log.info("收到删除帖子请求 - 帖子ID: {}, 用户ID: {}", jobId, userId);
+        boolean success = jobService.deleteJob(jobId, userId);
+
+        if (success) {
+            log.info("帖子删除成功 - 帖子ID: {}", jobId);
+            return R.success(null); // 明确返回 null
+        } else {
+            log.warn("帖子删除失败 - 帖子ID: {}, 用户ID: {}", jobId, userId);
+            return R.error("删除失败或无权限");
+        }
+    }
+    
     @NoAuth
     @GetMapping("list")
     @Operation(summary = "获取职位列表", description = "使用游标分页获取职位列表")
